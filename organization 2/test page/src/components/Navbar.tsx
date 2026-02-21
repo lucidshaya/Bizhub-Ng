@@ -20,10 +20,10 @@ export function Navbar() {
         <div className="flex justify-between items-center">
           {/* Logo */}
           <div className="flex items-center">
-            <a href="#" className="text-2xl font-extrabold tracking-tight">
+            <Link to="/" className="text-2xl font-extrabold tracking-tight">
               <span className="text-gold">Biz</span>
               <span className="text-primary">Hub NG</span>
-            </a>
+            </Link>
           </div>
 
           {/* Desktop Navigation */}

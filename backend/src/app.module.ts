@@ -13,6 +13,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { AdminModule } from './admin/admin.module';
 import { EmailModule } from './email/email.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { WaitlistModule } from './waitlist/waitlist.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     AdminModule,
     EmailModule,
     WebhooksModule,
+    WaitlistModule,
   ],
 })
 export class AppModule { }

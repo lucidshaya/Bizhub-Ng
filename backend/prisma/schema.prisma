@@ -308,3 +308,14 @@ model PaymentIntegration {
   @@unique([businessId, provider])
   @@map("payment_integrations")
 }
+// ─── WAITLIST ───────────────────────────────────────────────
+
+model Waitlist {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  businessName String   @map("business_name")
+  industry     String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("waitlist")
+}

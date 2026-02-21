@@ -1,4 +1,5 @@
 import React from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { FeatureShowcase } from './components/FeatureShowcase';
@@ -7,9 +8,11 @@ import { Testimonials } from './components/Testimonials';
 import { Pricing } from './components/Pricing';
 import { MobileApp } from './components/MobileApp';
 import { Footer } from './components/Footer';
-export function App() {
+import { WaitlistPage } from './pages/WaitlistPage';
+
+function LandingPage() {
   return (
-    <div className="min-h-screen bg-cream font-sans text-gray-900">
+    <>
       <Navbar />
       <main>
         <Hero />
@@ -20,6 +23,18 @@ export function App() {
         <MobileApp />
       </main>
       <Footer />
-    </div>);
+    </>
+  );
+}
 
+export function App() {
+  return (
+    <div className="min-h-screen bg-cream font-sans text-gray-900">
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/waitlist" element={<WaitlistPage />} />
+        <Route path="*" element={<LandingPage />} />
+      </Routes>
+    </div>
+  );
 }

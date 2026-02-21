@@ -1,5 +1,6 @@
 import React from 'react';
 import { Check } from 'lucide-react';
+import { Link } from 'react-router-dom';
 export function Pricing() {
   return (
     <section id="pricing" className="py-24 bg-darkGreen text-white">
@@ -39,9 +40,9 @@ export function Pricing() {
                   </li>
                 )}
             </ul>
-            <button className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-6 rounded-xl transition-colors">
+            <Link to="/waitlist" className="block w-full text-center bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-6 rounded-xl transition-colors">
               Join Waitlist
-            </button>
+            </Link>
           </div>
 
           {/* Growth Plan - Highlighted */}
@@ -74,9 +75,9 @@ export function Pricing() {
                   </li>
                 )}
             </ul>
-            <button className="w-full bg-primary hover:bg-darkGreen text-white font-bold py-4 px-6 rounded-xl shadow-lg transition-colors">
+            <Link to="/waitlist" className="block w-full text-center bg-primary hover:bg-darkGreen text-white font-bold py-4 px-6 rounded-xl shadow-lg transition-colors">
               Join Waitlist
-            </button>
+            </Link>
           </div>
 
           {/* Scale Plan */}
