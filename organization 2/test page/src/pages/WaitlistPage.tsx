@@ -17,7 +17,8 @@ export function WaitlistPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await axios.post('http://localhost:3333/api/waitlist', formData);
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3333/api';
+            await axios.post(`${apiUrl}/waitlist`, formData);
             setIsSubmitted(true);
         } catch (error) {
             console.error('Error joining waitlist:', error);
