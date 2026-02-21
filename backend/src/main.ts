@@ -1,9 +1,13 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { ExpressAdapter } from '@nestjs/platform-express';
+import express from 'express';
+
+const server = express();
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, new ExpressAdapter(server));
 
   // Global validation pipe
   app.useGlobalPipes(
@@ -32,8 +36,10 @@ async function bootstrap() {
   // API prefix
   app.setGlobalPrefix('api');
 
-  const port = process.env.PORT || 3333;
-  await app.listen(port);
-  console.log(`🚀 BizhubNg API running on http://localhost:${port}/api`);
+  await app.init();
 }
+
 bootstrap();
+
+export default server;
+
