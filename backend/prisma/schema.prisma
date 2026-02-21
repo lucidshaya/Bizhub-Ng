@@ -1,0 +1,310 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+// ─── USERS & AUTH ───────────────────────────────────────────
+
+model User {
+  id             String        @id @default(uuid())
+  email          String        @unique
+  passwordHash   String?       @map("password_hash")
+  fullName       String        @map("full_name")
+  avatarUrl      String?       @map("avatar_url")
+  phone          String?
+  role           UserRole      @default(OWNER)
+  supabaseUserId String?       @unique @map("supabase_user_id")
+  businessId     String?       @map("business_id")
+  business       Business?     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  inviteToken    String?       @unique @map("invite_token")
+  inviteStatus   String?       @map("invite_status") // PENDING, ACCEPTED
+  pinHash        String?       @map("pin_hash")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  sentMessages     ChatMessage[] @relation("SentMessages")
+  chatMemberships  ChatMember[]
+  staffRecord      Staff?
+
+  @@map("users")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  WORKER
+  VIEWER
+  STAFF
+}
+
+// ─── BUSINESSES ─────────────────────────────────────────────
+
+model Business {
+  id          String       @id @default(uuid())
+  name        String
+  type        String?      // e.g. "Retail", "Wholesale", "Services"
+  address     String?
+  city        String?      @default("Lagos")
+  state       String?      @default("Lagos")
+  phone       String?
+  email       String?
+  logoUrl     String?      @map("logo_url")
+  plan        BusinessPlan @default(BASIC)
+  currency    String       @default("NGN")
+  departments String[]     @default([])
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  users        User[]
+  staff        Staff[]
+  transactions Transaction[]
+  inventory    InventoryItem[]
+  cameras      Camera[]
+  chatRooms    ChatRoom[]
+  payrollRuns  PayrollRun[]
+  smsLogs      SmsLog[]
+  paymentIntegrations PaymentIntegration[]
+
+  @@map("businesses")
+}
+
+enum BusinessPlan {
+  BASIC
+  PREMIUM
+  ENTERPRISE
+}
+
+// ─── STAFF ──────────────────────────────────────────────────
+
+model Staff {
+  id             String      @id @default(uuid())
+  name           String
+  email          String?
+  phone          String?
+  role           String      // job title e.g. "Cashier", "Manager"
+  department     String?
+  bankName       String?     @map("bank_name")
+  accountNumber  String?     @map("account_number")
+  monthlySalary  Float       @default(0) @map("monthly_salary")
+  status         StaffStatus @default(ACTIVE)
+  avatarInitials String?     @map("avatar_initials")
+  avatarColor    String?     @map("avatar_color")
+  inviteStatus   InviteStatus @default(NONE)
+  businessId     String      @map("business_id")
+  business       Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  userId         String?     @unique @map("user_id")
+  user           User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  payrollItems PayrollItem[]
+
+  @@map("staff")
+}
+
+enum StaffStatus {
+  ACTIVE
+  ON_LEAVE
+  SUSPENDED
+  TERMINATED
+}
+
+enum InviteStatus {
+  NONE
+  PENDING
+  ACCEPTED
+}
+
+// ─── TRANSACTIONS ───────────────────────────────────────────
+
+model Transaction {
+  id          String            @id @default(uuid())
+  type        TransactionType
+  description String
+  amount      Float
+  channel     String?           // "Bank Transfer", "Paystack", "Moniepoint", etc.
+  status      TransactionStatus @default(PENDING)
+  reference   String?           @unique
+  date        DateTime          @default(now())
+  businessId  String            @map("business_id")
+  business    Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  @@map("transactions")
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+  PAYROLL
+  WITHDRAWAL
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+// ─── INVENTORY ──────────────────────────────────────────────
+
+model InventoryItem {
+  id                 String   @id @default(uuid())
+  name               String
+  description        String?
+  quantity           Int      @default(0)
+  unitPrice          Float    @default(0) @map("unit_price")
+  costPrice          Float    @default(0) @map("cost_price")
+  lowStockThreshold  Int      @default(5) @map("low_stock_threshold")
+  category           String?
+  sku                String?
+  businessId         String   @map("business_id")
+  business           Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("inventory_items")
+}
+
+// ─── CAMERAS / CCTV ────────────────────────────────────────
+
+model Camera {
+  id         String       @id @default(uuid())
+  name       String
+  location   String?
+  streamUrl  String?      @map("stream_url")
+  status     CameraStatus @default(OFFLINE)
+  businessId String       @map("business_id")
+  business   Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  @@map("cameras")
+}
+
+enum CameraStatus {
+  LIVE
+  OFFLINE
+}
+
+// ─── CHAT ───────────────────────────────────────────────────
+
+model ChatRoom {
+  id         String       @id @default(uuid())
+  name       String?      // null for DMs
+  type       ChatRoomType @default(DM)
+  businessId String       @map("business_id")
+  business   Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  members  ChatMember[]
+  messages ChatMessage[]
+
+  @@map("chat_rooms")
+}
+
+enum ChatRoomType {
+  DM
+  GROUP
+  CHANNEL
+}
+
+model ChatMember {
+  id       String   @id @default(uuid())
+  roomId   String   @map("room_id")
+  room     ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId   String   @map("user_id")
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  @@unique([roomId, userId])
+  @@map("chat_members")
+}
+
+model ChatMessage {
+  id       String   @id @default(uuid())
+  text     String
+  roomId   String   @map("room_id")
+  room     ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  senderId String   @map("sender_id")
+  sender   User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  read     Boolean  @default(false)
+  sentAt   DateTime @default(now()) @map("sent_at")
+
+  @@map("chat_messages")
+}
+
+// ─── PAYROLL ────────────────────────────────────────────────
+
+model PayrollRun {
+  id          String        @id @default(uuid())
+  totalAmount Float         @default(0) @map("total_amount")
+  staffCount  Int           @default(0) @map("staff_count")
+  status      PayrollStatus @default(PENDING)
+  businessId  String        @map("business_id")
+  business    Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  items PayrollItem[]
+
+  @@map("payroll_runs")
+}
+
+enum PayrollStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model PayrollItem {
+  id           String     @id @default(uuid())
+  amount       Float
+  reason       String?
+  payrollRunId String     @map("payroll_run_id")
+  payrollRun   PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  staffId      String     @map("staff_id")
+  staff        Staff      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@map("payroll_items")
+}
+
+// ─── SMS LOGS ───────────────────────────────────────────────
+
+model SmsLog {
+  id         String    @id @default(uuid())
+  to         String
+  message    String
+  status     SmsStatus @default(PENDING)
+  businessId String    @map("business_id")
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  sentAt     DateTime  @default(now()) @map("sent_at")
+
+  @@map("sms_logs")
+}
+
+enum SmsStatus {
+  PENDING
+  DELIVERED
+  FAILED
+}
+
+// ─── PAYMENT INTEGRATIONS ───────────────────────────────────
+
+model PaymentIntegration {
+  id         String  @id @default(uuid())
+  provider   String  // "paystack", "flutterwave", "moniepoint", "opay"
+  publicKey  String? @map("public_key")
+  secretKey  String? @map("secret_key")
+  connected  Boolean @default(false)
+  businessId String  @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([businessId, provider])
+  @@map("payment_integrations")
+}

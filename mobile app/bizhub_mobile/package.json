@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "android": "^0.0.8",
+    "ios": "^0.0.1"
+  }
+}
