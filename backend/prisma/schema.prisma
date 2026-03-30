@@ -52,11 +52,17 @@ model Business {
   phone       String?
   email       String?
   logoUrl     String?      @map("logo_url")
-  plan        BusinessPlan @default(BASIC)
-  currency    String       @default("NGN")
-  departments String[]     @default([])
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
+  plan                 BusinessPlan @default(BASIC)
+  planExpiryDate       DateTime?    @map("plan_expiry_date")
+  currency             String       @default("NGN")
+  departments          String[]     @default([])
+  morningShift         String?      @default("09:00 - 17:00") @map("morning_shift")
+  nightShift           String?      @default("17:00 - 01:00") @map("night_shift")
+  walletBalance        Float        @default(0) @map("wallet_balance")
+  virtualAccountNumber String?      @map("virtual_account_number")
+  virtualAccountBank   String?      @map("virtual_account_bank")
+  createdAt            DateTime     @default(now()) @map("created_at")
+  updatedAt            DateTime     @updatedAt @map("updated_at")
 
   users        User[]
   staff        Staff[]
@@ -75,6 +81,9 @@ enum BusinessPlan {
   BASIC
   PREMIUM
   ENTERPRISE
+  STARTER
+  GROWTH
+  SCALE
 }
 
 // ─── STAFF ──────────────────────────────────────────────────
@@ -141,6 +150,8 @@ enum TransactionType {
   DEBIT
   PAYROLL
   WITHDRAWAL
+  WALLET_FUNDING
+  PAYROLL_DISBURSEMENT
 }
 
 enum TransactionStatus {
@@ -318,4 +329,29 @@ model Waitlist {
   createdAt    DateTime @default(now()) @map("created_at")
 
   @@map("waitlist")
+}
+// ─── SUPPORT TICKETS ───────────────────────────────────────
+
+model SupportTicket {
+  id          String            @id @default(uuid())
+  userEmail   String            @map("user_email")
+  subject     String
+  message     String
+  status      String            @default("OPEN") // OPEN, CLOSED, RESOLVED
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+  responses   SupportResponse[]
+
+  @@map("support_tickets")
+}
+
+model SupportResponse {
+  id        String        @id @default(uuid())
+  ticketId  String        @map("ticket_id")
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender    String        // "ADMIN" or "USER"
+  message   String
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  @@map("support_responses")
 }

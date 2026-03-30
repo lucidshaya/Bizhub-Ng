@@ -154,7 +154,7 @@ class ApiService {
     return await post('/staff/pay', {
       'staffId': staffId,
       'amount': amount,
-      if (reason != null) 'reason': reason,
+      'reason': ?reason,
     });
   }
 
@@ -163,8 +163,8 @@ class ApiService {
     String? reason,
   }) async {
     return await post('/staff/pay-all', {
-      if (staffIds != null) 'staffIds': staffIds,
-      if (reason != null) 'reason': reason,
+      'staffIds': ?staffIds,
+      'reason': ?reason,
     });
   }
 
@@ -181,8 +181,8 @@ class ApiService {
       params: {
         'page': page.toString(),
         'limit': limit.toString(),
-        if (type != null) 'type': type,
-        if (search != null) 'search': search,
+        'type': ?type,
+        'search': ?search,
       },
     );
   }
@@ -223,6 +223,18 @@ class ApiService {
     return await get('/chat/rooms/$roomId/messages');
   }
 
+  static Future<Map<String, dynamic>> createChatRoom({
+    String? name,
+    required String type,
+    required List<String> memberIds,
+  }) async {
+    return await post('/chat/rooms', {
+      if (name != null) 'name': name,
+      'type': type,
+      'memberIds': memberIds,
+    });
+  }
+
   static Future<Map<String, dynamic>> sendMessage(
     String roomId,
     String text,
@@ -246,6 +258,22 @@ class ApiService {
 
   static Future<List<dynamic>> getPaymentIntegrations() async {
     return await get('/settings/payments');
+  }
+
+  static Future<Map<String, dynamic>> generateVirtualAccount() async {
+    return await post('/settings/wallet/generate', {});
+  }
+
+  static Future<Map<String, dynamic>> upgradePlan(String plan) async {
+    return await post('/settings/wallet/upgrade-plan', {'plan': plan});
+  }
+
+  // ─── SUPPORT ──────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> submitSupportTicket(
+    Map<String, dynamic> data,
+  ) async {
+    return await post('/support/tickets', data);
   }
 }
 

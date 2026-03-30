@@ -32,6 +32,12 @@ export class ChatController {
         return this.chatService.getRooms(req.user.sub, businessId);
     }
 
+    @Get('users')
+    async getUsers(@Request() req: any) {
+        const businessId = await this.getBusinessId(req.user.sub);
+        return this.chatService.getUsers(req.user.sub, businessId);
+    }
+
     @Get('rooms/:roomId/messages')
     async getMessages(@Param('roomId') roomId: string, @Request() req: any) {
         return this.chatService.getMessages(roomId, req.user.sub);

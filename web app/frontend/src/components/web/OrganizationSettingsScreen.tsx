@@ -8,6 +8,8 @@ export function OrganizationSettingsScreen() {
     const toast = useToast();
     const [departments, setDepartments] = useState<string[]>([]);
     const [newDept, setNewDept] = useState('');
+    const [morningShift, setMorningShift] = useState('09:00 - 17:00');
+    const [nightShift, setNightShift] = useState('17:00 - 01:00');
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [business, setBusiness] = useState<any>(null);
@@ -22,6 +24,8 @@ export function OrganizationSettingsScreen() {
             const res = await settingsApi.getProfile();
             setBusiness(res.data.business);
             setDepartments(res.data.business?.departments || []);
+            if (res.data.business?.morningShift) setMorningShift(res.data.business.morningShift);
+            if (res.data.business?.nightShift) setNightShift(res.data.business.nightShift);
         } catch (err) {
             console.error(err);
         } finally {
@@ -29,14 +33,42 @@ export function OrganizationSettingsScreen() {
         }
     };
 
-    const handleAddDept = () => {
+    const handleAddDept = async () => {
         if (!newDept.trim() || departments.includes(newDept.trim())) return;
-        setDepartments([...departments, newDept.trim()]);
+        const updated = [...departments, newDept.trim()];
+        setDepartments(updated);
         setNewDept('');
+
+        if (business) {
+            setIsSaving(true);
+            try {
+                await settingsApi.updateBusiness({ departments: updated });
+                toast.success('Department added');
+            } catch (err) {
+                toast.error('Failed to save department');
+                setDepartments(departments); // revert
+            } finally {
+                setIsSaving(false);
+            }
+        }
     };
 
-    const handleRemoveDept = (dept: string) => {
-        setDepartments(departments.filter((d) => d !== dept));
+    const handleRemoveDept = async (dept: string) => {
+        const updated = departments.filter((d) => d !== dept);
+        setDepartments(updated);
+
+        if (business) {
+            setIsSaving(true);
+            try {
+                await settingsApi.updateBusiness({ departments: updated });
+                toast.success('Department removed');
+            } catch (err) {
+                toast.error('Failed to remove department');
+                setDepartments(departments); // revert
+            } finally {
+                setIsSaving(false);
+            }
+        }
     };
 
     const handleSave = async () => {
@@ -45,6 +77,8 @@ export function OrganizationSettingsScreen() {
         try {
             const payload: any = {
                 departments,
+                morningShift,
+                nightShift,
             };
 
             // Only add properties that exist and were fetched to avoid validation errors
@@ -150,26 +184,38 @@ export function OrganizationSettingsScreen() {
                     </div>
                 </div>
 
-                {/* Work Shifts (Suggestion implementation) */}
+                {/* Work Shifts */}
                 <div className="bg-[#161B27] border border-[#1E2535] rounded-2xl p-6 shadow-lg">
                     <h3 className="text-[#F1F5F9] font-bold text-lg flex items-center gap-2 mb-4">
                         <Clock className="text-[#F59E0B]" size={20} /> Work Shifts
                     </h3>
                     <p className="text-[#94A3B8] text-sm mb-6">
-                        Define standard working hours for your teams. (Visual placeholder)
+                        Define standard working hours for your teams.
                     </p>
                     <div className="space-y-4">
                         <div className="bg-[#0F1117] border border-[#1E2535] rounded-xl p-4">
                             <div className="flex justify-between items-center mb-2">
                                 <span className="text-[#F1F5F9] font-semibold text-sm">Morning Shift</span>
-                                <span className="bg-[#00D084]/20 text-[#00D084] text-xs px-2 py-1 rounded-md font-bold">09:00 - 17:00</span>
+                                <input
+                                    type="text"
+                                    value={morningShift}
+                                    onChange={(e) => setMorningShift(e.target.value)}
+                                    className="bg-[#0F1117] border border-[#1E2535] rounded-md px-2 py-1 text-[#00D084] font-bold text-xs text-right w-32 focus:outline-none focus:border-[#00D084]"
+                                    placeholder="09:00 - 17:00"
+                                />
                             </div>
                             <p className="text-[#475569] text-xs">Standard daytime operating hours for general staff.</p>
                         </div>
                         <div className="bg-[#0F1117] border border-[#1E2535] rounded-xl p-4">
                             <div className="flex justify-between items-center mb-2">
                                 <span className="text-[#F1F5F9] font-semibold text-sm">Night Shift</span>
-                                <span className="bg-[#3B82F6]/20 text-[#3B82F6] text-xs px-2 py-1 rounded-md font-bold">17:00 - 01:00</span>
+                                <input
+                                    type="text"
+                                    value={nightShift}
+                                    onChange={(e) => setNightShift(e.target.value)}
+                                    className="bg-[#0F1117] border border-[#1E2535] rounded-md px-2 py-1 text-[#3B82F6] font-bold text-xs text-right w-32 focus:outline-none focus:border-[#3B82F6]"
+                                    placeholder="17:00 - 01:00"
+                                />
                             </div>
                             <p className="text-[#475569] text-xs">Evening operations and extended support teams.</p>
                         </div>

@@ -26,21 +26,23 @@ export function Pricing() {
             </div>
             <ul className="space-y-4 mb-8">
               {[
-              '1 User',
-              'Basic Invoicing',
-              'Expense Tracking',
-              'Email Support'].
-              map((feature) =>
-              <li key={feature} className="flex items-center gap-3">
-                  <div className="bg-white/20 rounded-full p-1">
-                    <Check size={14} />
-                  </div>
-                  <span>{feature}</span>
-                </li>
-              )}
+                '1 User',
+                'Dashboard Access',
+                'Staff & Payroll',
+                'Transactions',
+                'No Communications',
+                'No CCTV Live'].
+                map((feature) =>
+                  <li key={feature} className="flex items-center gap-3">
+                    <div className="bg-white/20 rounded-full p-1">
+                      <Check size={14} />
+                    </div>
+                    <span>{feature}</span>
+                  </li>
+                )}
             </ul>
             <button className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-6 rounded-xl transition-colors">
-              Start Free Trial
+              Start Starter Plan
             </button>
           </div>
 
@@ -57,22 +59,22 @@ export function Pricing() {
             </div>
             <ul className="space-y-4 mb-8">
               {[
-              'Up to 5 Users',
-              'Full Payroll & HR',
-              'Inventory Management',
-              'Priority Support',
-              'WhatsApp Integration'].
-              map((feature) =>
-              <li
-                key={feature}
-                className="flex items-center gap-3 font-medium">
+                'Up to 50 Staff members',
+                'Full Platform Access',
+                'Communications',
+                'CCTV Live',
+                'Priority Support'].
+                map((feature) =>
+                  <li
+                    key={feature}
+                    className="flex items-center gap-3 font-medium">
 
-                  <div className="bg-primary rounded-full p-1">
-                    <Check size={14} className="text-white" />
-                  </div>
-                  <span>{feature}</span>
-                </li>
-              )}
+                    <div className="bg-primary rounded-full p-1">
+                      <Check size={14} className="text-white" />
+                    </div>
+                    <span>{feature}</span>
+                  </li>
+                )}
             </ul>
             <button className="w-full bg-primary hover:bg-darkGreen text-white font-bold py-4 px-6 rounded-xl shadow-lg transition-colors">
               Start Free Trial
@@ -84,28 +86,28 @@ export function Pricing() {
             <h3 className="text-2xl font-bold mb-2">Scale</h3>
             <p className="text-green-200 mb-6">For established companies</p>
             <div className="flex items-baseline mb-8">
-              <span className="text-4xl font-extrabold">₦45,000</span>
+              <span className="text-4xl font-extrabold">₦50,000</span>
               <span className="text-green-200 ml-2">/month</span>
             </div>
             <ul className="space-y-4 mb-8">
               {[
-              'Unlimited Users',
-              'Advanced Analytics',
-              'Multi-branch Support',
-              'Dedicated Account Manager',
-              'API Access'].
-              map((feature) =>
-              <li key={feature} className="flex items-center gap-3">
-                  <div className="bg-white/20 rounded-full p-1">
-                    <Check size={14} />
-                  </div>
-                  <span>{feature}</span>
-                </li>
-              )}
+                'Unlimited Users',
+                'Advanced Analytics',
+                'Multi-branch Support',
+                'Dedicated Account Manager',
+                'API Access'].
+                map((feature) =>
+                  <li key={feature} className="flex items-center gap-3">
+                    <div className="bg-white/20 rounded-full p-1">
+                      <Check size={14} />
+                    </div>
+                    <span>{feature}</span>
+                  </li>
+                )}
             </ul>
-            <button className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-6 rounded-xl transition-colors">
+            <a href="mailto:sales@bizhub.ng" className="block text-center w-full bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-6 rounded-xl transition-colors">
               Contact Sales
-            </button>
+            </a>
           </div>
         </div>
       </div>

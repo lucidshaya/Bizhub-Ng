@@ -11,6 +11,11 @@ import { SettingsService } from './settings.service';
 import { UpdateProfileDto, UpdateBusinessDto, ConnectPaymentDto } from './dto/settings.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
+import { BusinessPlan } from '@prisma/client';
+
+export class UpgradePlanDto {
+    plan: BusinessPlan;
+}
 
 @UseGuards(JwtAuthGuard)
 @Controller('settings')
@@ -51,5 +56,24 @@ export class SettingsController {
     async connectPayment(@Body() dto: ConnectPaymentDto, @Request() req: any) {
         const businessId = await this.getBusinessId(req.user.sub);
         return this.settingsService.connectPayment(businessId, dto);
+    }
+
+    @Post('wallet/generate')
+    async generateVirtualAccount(@Request() req: any) {
+        const businessId = await this.getBusinessId(req.user.sub);
+        return this.settingsService.generateVirtualAccount(businessId);
+    }
+
+    @Post('wallet/upgrade-plan')
+    async upgradePlan(@Body() dto: UpgradePlanDto, @Request() req: any) {
+        const businessId = await this.getBusinessId(req.user.sub);
+        return this.settingsService.upgradePlan(businessId, dto.plan);
+    }
+
+    @Post('paystack/upgrade-plan')
+    async upgradePlanPaystack(@Body() dto: UpgradePlanDto, @Request() req: any) {
+        const businessId = await this.getBusinessId(req.user.sub);
+        const user = await this.prisma.user.findUnique({ where: { id: req.user.sub } });
+        return this.settingsService.upgradePlanPaystack(businessId, dto.plan, user!.email);
     }
 }

@@ -37,4 +37,9 @@ export class AdminController {
     async getSupportMetrics() {
         return this.admin.getSupportMetrics();
     }
+
+    @Get('superadmin/data')
+    async getSuperAdminData() {
+        return this.admin.getSuperAdminData();
+    }
 }

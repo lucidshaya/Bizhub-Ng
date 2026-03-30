@@ -6,189 +6,124 @@ import {
   Smile,
   Phone,
   MoreVertical,
-  Search } from
-'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+  Search,
+  Loader2
+} from
+  'lucide-react';
+import { motion } from 'framer-motion';
+import { chatApi } from '../../services/api';
+import { socketService } from '../../services/socket';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../web/Toast';
+
 interface MobileChatProps {
   onBack: () => void;
 }
-const contacts = [
-{
-  id: 1,
-  name: '#general',
-  type: 'channel',
-  unread: 3,
-  last: 'Emeka: Payroll done ✓',
-  time: '2m',
-  color: '#00D084',
-  initials: '#'
-},
-{
-  id: 2,
-  name: '#payroll-alerts',
-  type: 'channel',
-  unread: 0,
-  last: 'System: ₦1.84M sent',
-  time: '1h',
-  color: '#F59E0B',
-  initials: '#'
-},
-{
-  id: 3,
-  name: 'Amaka Eze',
-  type: 'dm',
-  unread: 2,
-  last: 'Can I take tomorrow off?',
-  time: '5m',
-  color: '#3B82F6',
-  initials: 'AE'
-},
-{
-  id: 4,
-  name: 'Chidi Nwosu',
-  type: 'dm',
-  unread: 0,
-  last: 'Thanks boss 🙏',
-  time: '1h',
-  color: '#8B5CF6',
-  initials: 'CN'
-},
-{
-  id: 5,
-  name: 'Fatima Bello',
-  type: 'dm',
-  unread: 0,
-  last: 'Report attached',
-  time: '2h',
-  color: '#F59E0B',
-  initials: 'FB'
-},
-{
-  id: 6,
-  name: 'Tunde Fashola',
-  type: 'dm',
-  unread: 0,
-  last: 'Server is back online',
-  time: 'Yesterday',
-  color: '#06B6D4',
-  initials: 'TF'
-}];
 
-const initialMessages = [
-{
-  id: 1,
-  sender: 'Amaka Eze',
-  initials: 'AE',
-  color: '#3B82F6',
-  text: 'Good morning sir! The February payroll has been processed?',
-  time: '08:05',
-  mine: false
-},
-{
-  id: 2,
-  sender: 'Me',
-  initials: 'EO',
-  color: '#00D084',
-  text: 'Yes, all 24 workers have been paid. Check the transactions tab.',
-  time: '08:07',
-  mine: true
-},
-{
-  id: 3,
-  sender: 'Amaka Eze',
-  initials: 'AE',
-  color: '#3B82F6',
-  text: 'Perfect! Also, can I take tomorrow off? I have a family event.',
-  time: '08:09',
-  mine: false
-},
-{
-  id: 4,
-  sender: 'Me',
-  initials: 'EO',
-  color: '#00D084',
-  text: 'Sure, no problem. Just make sure the morning cash count is done before you leave today.',
-  time: '08:11',
-  mine: true
-},
-{
-  id: 5,
-  sender: 'Amaka Eze',
-  initials: 'AE',
-  color: '#3B82F6',
-  text: 'Will do! Thank you so much sir 🙏',
-  time: '08:12',
-  mine: false
-},
-{
-  id: 6,
-  sender: 'Me',
-  initials: 'EO',
-  color: '#00D084',
-  text: "Also, please send me the weekly sales report when you're done.",
-  time: '08:15',
-  mine: true
-},
-{
-  id: 7,
-  sender: 'Amaka Eze',
-  initials: 'AE',
-  color: '#3B82F6',
-  text: "Of course! I'll have it ready by 3pm today.",
-  time: '08:16',
-  mine: false
-},
-{
-  id: 8,
-  sender: 'Amaka Eze',
-  initials: 'AE',
-  color: '#3B82F6',
-  text: 'Can I take tomorrow off?',
-  time: '09:42',
-  mine: false
-}];
 
 type View = 'list' | 'chat';
+
 export function MobileChat({ onBack }: MobileChatProps) {
   const [view, setView] = useState<View>('list');
-  const [activeContact, setActiveContact] = useState(contacts[2]);
-  const [messages, setMessages] = useState(initialMessages);
+  const [activeRoom, setActiveRoom] = useState<any>(null);
+
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [chatUsers, setChatUsers] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+
   const [input, setInput] = useState('');
   const [search, setSearch] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    loadRooms();
+    loadUsers();
+  }, []);
+
   useEffect(() => {
     if (view === 'chat') {
-      messagesEndRef.current?.scrollIntoView({
-        behavior: 'smooth'
-      });
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, view]);
-  const sendMessage = () => {
-    if (!input.trim()) return;
-    const now = new Date();
-    const time = now.toLocaleTimeString('en-NG', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
-    setMessages((prev) => [
-    ...prev,
-    {
-      id: prev.length + 1,
-      sender: 'Me',
-      initials: 'EO',
-      color: '#00D084',
-      text: input.trim(),
-      time,
-      mine: true
-    }]
-    );
-    setInput('');
+
+  useEffect(() => {
+    const socket = socketService.connect();
+    const handleNewMessage = (data: { roomId: string, message: any }) => {
+      if (data.roomId === activeRoom?.id) {
+        setMessages(prev => {
+          if (prev.find(m => m.id === data.message.id)) return prev;
+          return [...prev, data.message];
+        });
+      }
+      loadRooms();
+    };
+    socket?.on('new_message', handleNewMessage);
+    return () => { socket?.off('new_message', handleNewMessage); };
+  }, [activeRoom]);
+
+  const loadRooms = async () => {
+    try {
+      const res = await chatApi.getRooms();
+      setRooms(res.data);
+    } catch { } finally { setIsLoading(false); }
   };
-  const filteredContacts = contacts.filter((c) =>
-  c.name.toLowerCase().includes(search.toLowerCase())
+
+  const loadUsers = async () => {
+    try {
+      const res = await chatApi.getUsers();
+      setChatUsers(res.data);
+    } catch { }
+  };
+
+  const loadMessages = async (roomId: string) => {
+    try {
+      const res = await chatApi.getMessages(roomId);
+      setMessages(res.data);
+    } catch { }
+  };
+
+  const joinRoom = (room: any) => {
+    setActiveRoom(room);
+    setView('chat');
+    loadMessages(room.id);
+    socketService.getSocket()?.emit('join_room', { roomId: room.id });
+  };
+
+  const handleUserClick = async (userId: string) => {
+    setIsLoading(true);
+    try {
+      const res = await chatApi.createRoom({
+        type: 'DM',
+        memberIds: [userId]
+      });
+      const room = res.data;
+      await loadRooms();
+      joinRoom(room);
+    } catch (e: any) {
+      toast.error('Failed to start chat');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!input.trim() || !activeRoom) return;
+    setIsSending(true);
+    try {
+      await chatApi.sendMessage(activeRoom.id, input.trim());
+      setInput('');
+    } catch { } finally { setIsSending(false); }
+  };
+  const filteredRooms = rooms.filter((r) =>
+    (r.name || 'Chat').toLowerCase().includes(search.toLowerCase())
   );
-  if (view === 'chat') {
+  const filteredUsers = chatUsers.filter((u) =>
+    (u.name || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  if (view === 'chat' && activeRoom) {
     return (
       <div className="h-full flex flex-col bg-[#0F1117]">
         {/* Chat Header */}
@@ -200,20 +135,16 @@ export function MobileChat({ onBack }: MobileChatProps) {
             <ArrowLeft size={20} />
           </button>
           <div
-            className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 relative"
-            style={{
-              backgroundColor: activeContact.color + '30',
-              color: activeContact.color
-            }}>
-
-            {activeContact.initials}
-            {activeContact.type === 'dm' &&
-            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#00D084] rounded-full border-2 border-[#161B27]" />
+            className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 relative bg-[#3B82F6]/20 text-[#3B82F6]"
+          >
+            {activeRoom.name?.slice(0, 2).toUpperCase() || '??'}
+            {activeRoom.type === 'DM' &&
+              <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#00D084] rounded-full border-2 border-[#161B27]" />
             }
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[#F1F5F9] text-sm font-semibold truncate">
-              {activeContact.name}
+              {activeRoom.name || 'Chat'}
             </p>
             <p className="text-[#00D084] text-xs">Online</p>
           </div>
@@ -236,43 +167,32 @@ export function MobileChat({ onBack }: MobileChatProps) {
             <div className="flex-1 h-px bg-[#1E2535]" />
           </div>
 
-          {messages.map((msg, i) =>
-          <motion.div
-            key={msg.id}
-            initial={{
-              opacity: 0,
-              y: 8
-            }}
-            animate={{
-              opacity: 1,
-              y: 0
-            }}
-            transition={{
-              duration: 0.15,
-              delay: i < 7 ? 0 : 0
-            }}
-            className={`flex gap-2 ${msg.mine ? 'flex-row-reverse' : ''}`}>
+          {messages.map((msg) =>
+            <motion.div
+              key={msg.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.15 }}
+              className={`flex gap-2 ${msg.isMine ? 'flex-row-reverse' : ''}`}>
 
-              {!msg.mine &&
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 self-end mb-1"
-              style={{
-                backgroundColor: msg.color + '30',
-                color: msg.color
-              }}>
-
-                  {msg.initials}
+              {!msg.isMine &&
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 self-end mb-1 bg-[#3B82F6]/30 text-[#3B82F6]"
+                >
+                  {msg.senderName?.slice(0, 2).toUpperCase() || '??'}
                 </div>
-            }
+              }
               <div
-              className={`max-w-[72%] flex flex-col gap-0.5 ${msg.mine ? 'items-end' : 'items-start'}`}>
+                className={`max-w-[72%] flex flex-col gap-0.5 ${msg.isMine ? 'items-end' : 'items-start'}`}>
 
                 <div
-                className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.mine ? 'bg-[#00D084] text-[#0F1117] rounded-tr-sm font-medium' : 'bg-[#161B27] text-[#F1F5F9] rounded-tl-sm border border-[#1E2535]'}`}>
+                  className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.isMine ? 'bg-[#00D084] text-[#0F1117] rounded-tr-sm font-medium' : 'bg-[#161B27] text-[#F1F5F9] rounded-tl-sm border border-[#1E2535]'}`}>
 
                   {msg.text}
                 </div>
-                <p className="text-[#475569] text-[10px] px-1">{msg.time}</p>
+                <p className="text-[#475569] text-[10px] px-1">
+                  {new Date(msg.sentAt).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' })}
+                </p>
               </div>
             </motion.div>
           )}
@@ -296,10 +216,11 @@ export function MobileChat({ onBack }: MobileChatProps) {
               <Smile size={16} />
             </button>
             <button
+              disabled={!input.trim() || isSending}
               onClick={sendMessage}
-              className="w-8 h-8 bg-[#00D084] rounded-xl flex items-center justify-center text-[#0F1117] active:scale-95 transition-transform">
+              className="w-8 h-8 bg-[#00D084] disabled:opacity-50 rounded-xl flex items-center justify-center text-[#0F1117] active:scale-95 transition-transform">
 
-              <Send size={13} />
+              {isSending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
             </button>
           </div>
         </div>
@@ -341,119 +262,81 @@ export function MobileChat({ onBack }: MobileChatProps) {
 
       {/* Contact List */}
       <div className="flex-1 overflow-y-auto app-scroll">
-        {/* Channels */}
-        <div className="px-4 pt-4 pb-1">
-          <p className="text-[#475569] text-xs font-semibold uppercase tracking-wider">
-            Channels
-          </p>
-        </div>
-        {filteredContacts.
-        filter((c) => c.type === 'channel').
-        map((c, i) =>
-        <motion.button
-          key={c.id}
-          initial={{
-            opacity: 0,
-            x: -10
-          }}
-          animate={{
-            opacity: 1,
-            x: 0
-          }}
-          transition={{
-            delay: i * 0.05
-          }}
-          onClick={() => {
-            setActiveContact(c);
-            setView('chat');
-          }}
-          className="w-full flex items-center gap-3 px-4 py-3 active:bg-[#1E2535] transition-colors">
-
-              <div
-            className="w-11 h-11 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0"
-            style={{
-              backgroundColor: c.color + '20',
-              color: c.color
-            }}>
-
-                #
-              </div>
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-[#F1F5F9] text-sm font-semibold truncate">
-                  {c.name}
-                </p>
-                <p className="text-[#475569] text-xs truncate mt-0.5">
-                  {c.last}
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                <span className="text-[#475569] text-xs">{c.time}</span>
-                {c.unread > 0 &&
-            <span className="w-5 h-5 bg-[#00D084] rounded-full text-[#0F1117] text-xs font-bold flex items-center justify-center">
-                    {c.unread}
-                  </span>
-            }
-              </div>
-            </motion.button>
-        )}
-
-        {/* DMs */}
-        <div className="px-4 pt-4 pb-1">
-          <p className="text-[#475569] text-xs font-semibold uppercase tracking-wider">
-            Direct Messages
-          </p>
-        </div>
-        {filteredContacts.
-        filter((c) => c.type === 'dm').
-        map((c, i) =>
-        <motion.button
-          key={c.id}
-          initial={{
-            opacity: 0,
-            x: -10
-          }}
-          animate={{
-            opacity: 1,
-            x: 0
-          }}
-          transition={{
-            delay: (i + 2) * 0.05
-          }}
-          onClick={() => {
-            setActiveContact(c);
-            setView('chat');
-          }}
-          className="w-full flex items-center gap-3 px-4 py-3 active:bg-[#1E2535] transition-colors">
-
-              <div className="relative flex-shrink-0">
-                <div
-              className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold"
-              style={{
-                backgroundColor: c.color + '30',
-                color: c.color
-              }}>
-
-                  {c.initials}
+        {isLoading ? (
+          <div className="flex justify-center py-10"><Loader2 size={24} className="animate-spin text-[#00D084]" /></div>
+        ) : (
+          <>
+            {/* Recent Chats */}
+            {filteredRooms.length > 0 && (
+              <>
+                <div className="px-4 pt-4 pb-1">
+                  <p className="text-[#475569] text-xs font-semibold uppercase tracking-wider">
+                    Recent Chats
+                  </p>
                 </div>
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#00D084] rounded-full border-2 border-[#0F1117]" />
+                {filteredRooms.map((r, i) => (
+                  <motion.button
+                    key={r.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    onClick={() => joinRoom(r)}
+                    className="w-full flex items-center gap-3 px-4 py-3 active:bg-[#1E2535] transition-colors"
+                  >
+                    <div className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 bg-[#3B82F6]/20 text-[#3B82F6]">
+                      {r.name?.slice(0, 2).toUpperCase() || '??'}
+                    </div>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-[#F1F5F9] text-sm font-semibold truncate">{r.name || 'Chat'}</p>
+                      <p className="text-[#475569] text-xs truncate mt-0.5">{r.lastMessage?.text || 'No messages yet'}</p>
+                    </div>
+                  </motion.button>
+                ))}
+              </>
+            )}
+
+            {/* Team Directory */}
+            {filteredUsers.length > 0 && (
+              <>
+                <div className="px-4 pt-4 pb-1">
+                  <p className="text-[#475569] text-xs font-semibold uppercase tracking-wider">
+                    Team Directory
+                  </p>
+                </div>
+                {filteredUsers.map((u, i) => (
+                  <motion.button
+                    key={u.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    onClick={() => handleUserClick(u.id)}
+                    className="w-full flex items-center gap-3 px-4 py-3 active:bg-[#1E2535] transition-colors"
+                  >
+                    <div className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 border border-[#3B82F6]/30 bg-[#3B82F6]/10 text-[#3B82F6]">
+                      {u.name?.slice(0, 2).toUpperCase() || '??'}
+                    </div>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-[#F1F5F9] text-sm font-semibold flex items-center gap-2 truncate">
+                        {u.name}
+                        {u.inviteStatus === 'PENDING' && (
+                          <span className="text-[10px] text-[#F59E0B] bg-[#F59E0B]/10 px-1.5 py-0.5 rounded font-bold">
+                            PENDING
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-[#475569] text-xs truncate mt-0.5">{u.role}</p>
+                    </div>
+                  </motion.button>
+                ))}
+              </>
+            )}
+
+            {filteredRooms.length === 0 && filteredUsers.length === 0 && (
+              <div className="text-center py-10 px-4">
+                <p className="text-[#94A3B8] text-sm">No results found.</p>
               </div>
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-[#F1F5F9] text-sm font-semibold truncate">
-                  {c.name}
-                </p>
-                <p className="text-[#475569] text-xs truncate mt-0.5">
-                  {c.last}
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                <span className="text-[#475569] text-xs">{c.time}</span>
-                {c.unread > 0 &&
-            <span className="w-5 h-5 bg-[#00D084] rounded-full text-[#0F1117] text-xs font-bold flex items-center justify-center">
-                    {c.unread}
-                  </span>
-            }
-              </div>
-            </motion.button>
+            )}
+          </>
         )}
       </div>
     </div>);

@@ -71,4 +71,15 @@ export class AuthController {
     async verifyPin(@Request() req: any, @Body() body: { pin: string }) {
         return this.authService.verifyPin(req.user.sub, body.pin);
     }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('request-pin-reset')
+    async requestPinReset(@Request() req: any) {
+        return this.authService.requestPinReset(req.user.sub);
+    }
+
+    @Post('reset-pin')
+    async resetPin(@Body() body: { token: string; pin: string }) {
+        return this.authService.resetPin(body.token, body.pin);
+    }
 }

@@ -191,4 +191,28 @@ export class AdminService {
 
         return { totalRooms, totalMessages, todayMessages };
     }
+
+    // ─── SUPER ADMIN DATA ─────────────────────────────────
+
+    async getSuperAdminData() {
+        const users = await this.prisma.user.findMany({
+            select: { id: true, fullName: true, email: true, role: true, createdAt: true },
+            orderBy: { createdAt: 'desc' }
+        });
+        const businesses = await this.prisma.business.findMany({
+            select: { id: true, name: true, plan: true, phone: true, address: true },
+            orderBy: { createdAt: 'desc' }
+        });
+        const transactions = await this.prisma.transaction.findMany({
+            select: { id: true, amount: true, description: true, status: true, date: true },
+            orderBy: { date: 'desc' },
+            take: 100
+        });
+
+        return {
+            users,
+            businesses,
+            transactions: transactions.map(t => ({ ...t, reason: t.description, createdAt: t.date }))
+        };
+    }
 }

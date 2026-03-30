@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { authApi } from '../services/api';
 import { motion } from 'framer-motion';
 import { Mail, ArrowLeft, CheckCircle, Loader2 } from 'lucide-react';
-
+  
 export function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
     const [sent, setSent] = useState(false);

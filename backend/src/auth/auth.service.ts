@@ -42,11 +42,14 @@ export class AuthService {
                     password: dto.password,
                     email_confirm: true,
                 });
-            if (!supabaseError && supabaseUser?.user) {
+            if (supabaseError) {
+                console.log('⚠️ Supabase signup note:', supabaseError.message);
+            } else if (supabaseUser?.user) {
                 supabaseUserId = supabaseUser.user.id;
             }
-        } catch {
-            // Supabase admin not available — continue with local DB only
+        } catch (err: any) {
+            console.error('❌ Supabase signup fetch error:', err.message);
+            // Non-blocking: continue with local DB
         }
 
         // Hash password for local DB
@@ -195,16 +198,22 @@ export class AuthService {
     // ─── FORGOT PASSWORD ────────────────────────────────
 
     async forgotPassword(email: string) {
-        const supabase = this.supabaseService.getClient();
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${process.env.FRONTEND_URL}/reset-password`,
-        });
+        try {
+            const supabase = this.supabaseService.getClient();
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: `${process.env.FRONTEND_URL}/reset-password`,
+            });
 
-        if (error) {
-            throw new BadRequestException(error.message);
+            if (error) {
+                console.error('❌ Supabase forgot password error:', error.message);
+                throw new BadRequestException(error.message);
+            }
+
+            return { message: 'Password reset email sent' };
+        } catch (err: any) {
+            console.error('❌ Supabase forgot password fetch error:', err.message);
+            throw new BadRequestException('Failed to connect to authentication service');
         }
-
-        return { message: 'Password reset email sent' };
     }
 
     // ─── GET CURRENT USER (Profile) ──────────────────────
@@ -373,11 +382,13 @@ export class AuthService {
                     role: 'WORKER',
                 },
             });
-            if (!error && data.user) {
+            if (error) {
+                console.log('⚠️ Supabase accept invite note:', error.message);
+            } else if (data.user) {
                 supabaseUserId = data.user.id;
             }
-        } catch {
-            // Supabase user may already exist from invite
+        } catch (err: any) {
+            console.error('❌ Supabase accept invite fetch error:', err.message);
         }
 
         // Hash password for local DB
@@ -449,6 +460,61 @@ export class AuthService {
             throw new UnauthorizedException('Invalid PIN');
         }
         return { valid: true };
+    }
+
+    // ─── REQUEST PIN RESET ──────────────────────────────
+
+    async requestPinReset(userId: string) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            include: { business: true },
+        });
+
+        if (!user) throw new UnauthorizedException('User not found');
+
+        // Note: For now, setting expiration to 15m for the PIN reset link
+        const token = this.jwtService.sign(
+            { sub: user.id, type: 'PIN_RESET' },
+            { expiresIn: '15m' }
+        );
+
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const resetLink = `${frontendUrl}/reset-pin?token=${token}`;
+
+        await this.emailService.sendRawEmail(
+            user.email,
+            'Reset your Transaction PIN',
+            `Hello ${user.fullName},\n\nClick the link below to reset your transaction PIN for ${user.business?.name || 'BizhubNg'}.\n\n${resetLink}\n\nIf you did not request this, please ignore it.`
+        );
+
+        return { message: 'PIN reset instructions sent to your email.' };
+    }
+
+    // ─── RESET PIN (FROM EMAIL LINK) ─────────────────────
+
+    async resetPin(token: string, newPin: string) {
+        if (!/^\d{4}$/.test(newPin)) {
+            throw new BadRequestException('PIN must be exactly 4 digits');
+        }
+
+        try {
+            const payload = this.jwtService.verify(token);
+            if (payload.type !== 'PIN_RESET') {
+                throw new BadRequestException('Invalid token type');
+            }
+
+            const userId = payload.sub;
+            const pinHash = await bcrypt.hash(newPin, 10);
+
+            await this.prisma.user.update({
+                where: { id: userId },
+                data: { pinHash },
+            });
+
+            return { message: 'PIN has been reset successfully.' };
+        } catch (e) {
+            throw new BadRequestException('Invalid or expired reset token. Please request a new one.');
+        }
     }
 
     // ─── HELPERS ─────────────────────────────────────────

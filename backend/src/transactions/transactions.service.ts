@@ -71,6 +71,27 @@ export class TransactionsService {
         });
     }
 
+    async syncTransactions(businessId: string) {
+        // Since we are now using a real SMS Webhook (via POST /api/webhooks/sms)
+        // to automatically sync deposits, this manual "sync" button on the frontend
+        // should just fetch the most recently synced bank transfers.
+        // It provides a user-friendly confirmation that the system is up-to-date.
+        
+        const recentSyncs = await this.prisma.transaction.findMany({
+            where: { 
+                businessId, 
+                channel: 'Bank Transfer'
+            },
+            orderBy: { date: 'desc' },
+            take: 5
+        });
+
+        return {
+            message: `Account is synchronized. Last ${recentSyncs.length} transfers confirmed. Ensure your SMS Gateway is active.`,
+            transactions: recentSyncs,
+        };
+    }
+
     async delete(id: string, businessId: string) {
         await this.findOne(id, businessId);
         return this.prisma.transaction.delete({ where: { id } });

@@ -79,6 +79,60 @@ export class PaymentsService {
         }
     }
 
+    async verifyWalletFunding(reference: string, userId: string) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        const businessId = user?.businessId;
+        if (!businessId) throw new HttpException('No business found', HttpStatus.BAD_REQUEST);
+
+        const secretKey = this.config.get('PAYSTACK_SECRET_KEY');
+        const res = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+            headers: { Authorization: `Bearer ${secretKey}` },
+        });
+        const data = await res.json();
+        
+        if (data.data?.status !== 'success') {
+            throw new HttpException('Payment not successful', HttpStatus.BAD_REQUEST);
+        }
+
+        const amountInNaira = data.data.amount / 100;
+
+        await this.prisma.$transaction(async (tx) => {
+            const existingTxn = await tx.transaction.findFirst({ where: { reference } });
+            if (existingTxn) {
+                if (existingTxn.status !== 'COMPLETED') {
+                     await tx.transaction.update({
+                         where: { id: existingTxn.id },
+                         data: { status: 'COMPLETED' }
+                     });
+                     await tx.business.update({
+                         where: { id: businessId },
+                         data: { walletBalance: { increment: amountInNaira } }
+                     });
+                }
+                return;
+            }
+
+            await tx.transaction.create({
+                data: {
+                    businessId,
+                    type: 'CREDIT',
+                    amount: amountInNaira,
+                    description: 'Wallet Funding via Paystack',
+                    channel: 'Paystack',
+                    status: 'COMPLETED',
+                    reference,
+                },
+            });
+
+            await tx.business.update({
+                where: { id: businessId },
+                data: { walletBalance: { increment: amountInNaira } }
+            });
+        });
+
+        return { status: 'COMPLETED', amount: amountInNaira, reference };
+    }
+
     // ─── FLUTTERWAVE ──────────────────────────────────────
 
     async flutterwaveInitialize(userId: string, amount: number, email: string, description?: string) {

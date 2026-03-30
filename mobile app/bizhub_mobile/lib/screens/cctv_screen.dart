@@ -134,7 +134,11 @@ class _CctvScreenState extends State<CctvScreen> {
                         ),
                         GestureDetector(
                           onTap: () {
-                            /* TODO: add camera */
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Add Camera coming soon!'),
+                              ),
+                            );
                           },
                           child: Container(
                             width: 32,

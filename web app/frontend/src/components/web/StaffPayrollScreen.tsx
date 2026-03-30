@@ -1,29 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Search, Plus, DollarSign, Edit2, CheckSquare, Square,
-  X, UserX, Loader2, Trash2, Save, Mail, Check, CreditCard,
+  X, UserX, Loader2, Trash2, Save, Check, CreditCard, RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { staffApi, authApi, settingsApi } from '../../services/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { usePaystackPayment } from 'react-paystack';
+import { staffApi, authApi, settingsApi, dashboardApi } from '../../services/api';
 import { useToast } from './Toast';
 
 export function StaffPayrollScreen() {
   const toast = useToast();
-  const [staff, setStaff] = useState<any[]>([]);
+  const queryClient = useQueryClient();
   const [selected, setSelected] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
   const [editingStaff, setEditingStaff] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [payReason, setPayReason] = useState('Monthly salary');
   const [paidStaffIds, setPaidStaffIds] = useState<Set<string>>(new Set());
-  const [departments, setDepartments] = useState<string[]>([]);
-  const walletBalance = 15000000; // Mock balance to match mobile app behavior
-
-  // formatted salary input state
+  const [showFundModal, setShowFundModal] = useState(false);
+  const [fundAmount, setFundAmount] = useState('');
+  const [isFunding, setIsFunding] = useState(false);
   const [salaryInput, setSalaryInput] = useState('');
 
   const [newStaff, setNewStaff] = useState({
@@ -31,130 +30,184 @@ export function StaffPayrollScreen() {
     bankName: '', accountNumber: '', monthlySalary: 0,
   });
 
-  useEffect(() => {
-    loadStaff();
-    loadDepartments();
-  }, []);
+  // Queries
+  const { data: staffData = [], isLoading: staffLoading } = useQuery({
+    queryKey: ['staff_list'],
+    queryFn: () => staffApi.getAll().then(res => res.data),
+  });
 
-  const loadDepartments = async () => {
-    try {
-      const res = await settingsApi.getProfile();
-      setDepartments(res.data.business?.departments || []);
-    } catch (e) { }
-  };
+  const { data: profileData } = useQuery({
+    queryKey: ['profile'],
+    queryFn: () => settingsApi.getProfile().then(res => res.data),
+  });
 
-  const loadStaff = async () => {
-    setIsLoading(true);
-    try {
-      const res = await staffApi.getAll();
-      setStaff(res.data);
-    } catch {
-      toast.error('Failed to load staff');
-    } finally {
-      setIsLoading(false);
+  const departments = profileData?.business?.departments || [];
+  const plan = profileData?.business?.plan || 'STARTER';
+  const walletBalance = profileData?.business?.walletBalance || 0;
+  const userEmail = profileData?.email || '';
+
+  // Mutations
+  const createStaff = useMutation({
+    mutationFn: (data: any) => staffApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff_list'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard_summary'] });
     }
-  };
+  });
 
-  // ─── CREATE STAFF + SEND INVITE ────────────────────────
+  const updateStaff = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => staffApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff_list'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard_summary'] });
+    }
+  });
+
+  const deleteStaff = useMutation({
+    mutationFn: (id: string) => staffApi.remove(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff_list'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard_summary'] });
+    }
+  });
+
+  const payStaff = useMutation({
+    mutationFn: (id: string) => staffApi.pay(id, staffData.find((s: any) => s.id === id).monthlySalary, 'Monthly salary'),
+    onSuccess: (res, variables) => {
+      setPaidStaffIds(prev => new Set([...prev, variables]));
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard_summary'] });
+    }
+  });
+
+  const payAllMutation = useMutation({
+    mutationFn: (data: any) => staffApi.payAll(data.ids, data.reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['staff_list'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard_summary'] });
+    }
+  });
+
   const handleCreate = async () => {
     if (!newStaff.name || !newStaff.role) {
       toast.warning('Name and role are required');
       return;
     }
-    setIsSaving(true);
-    try {
-      await staffApi.create(newStaff);
-
-      // Send invitation email if email provided
-      if (newStaff.email) {
-        try {
-          await authApi.inviteWorker({
-            name: newStaff.name,
-            email: newStaff.email,
-            role: newStaff.role,
-            phone: newStaff.phone || undefined,
-          });
-          toast.success(`Staff added & invitation sent to ${newStaff.email}`);
-        } catch {
-          toast.info(`Staff added, but invitation email could not be sent to ${newStaff.email}`);
-        }
-      } else {
-        toast.success(`${newStaff.name} added to staff`);
-      }
-
-      setShowAddModal(false);
-      setNewStaff({ name: '', email: '', phone: '', role: '', department: '', bankName: '', accountNumber: '', monthlySalary: 0 });
-      setSalaryInput('');
-      await loadStaff();
-    } catch (e: any) {
-      toast.error(e?.response?.data?.message || 'Failed to add staff');
-    } finally {
-      setIsSaving(false);
+    if (plan === 'GROWTH' && staffData.length >= 50) {
+      toast.error('Limit reached. Upgrade to Scale.');
+      return;
     }
+
+    createStaff.mutate(newStaff, {
+      onSuccess: async () => {
+        if (newStaff.email) {
+          try {
+            await authApi.inviteWorker({
+              name: newStaff.name,
+              email: newStaff.email,
+              role: newStaff.role,
+              phone: newStaff.phone || undefined,
+            });
+            toast.success(`Staff added & invitation sent to ${newStaff.email}`);
+          } catch {
+            toast.info(`Staff added, invite failed.`);
+          }
+        } else {
+          toast.success(`${newStaff.name} added`);
+        }
+        setShowAddModal(false);
+        setNewStaff({ name: '', email: '', phone: '', role: '', department: '', bankName: '', accountNumber: '', monthlySalary: 0 });
+        setSalaryInput('');
+      },
+      onError: (e: any) => {
+        toast.error(e?.response?.data?.message || 'Failed to add staff');
+      }
+    });
   };
 
-  // ─── UPDATE STAFF ──────────────────────────────────────
   const handleUpdate = async () => {
     if (!editingStaff) return;
-    setIsSaving(true);
-    try {
-      await staffApi.update(editingStaff.id, editingStaff);
-      toast.success(`${editingStaff.name} updated`);
-      setShowEditModal(false);
-      setEditingStaff(null);
-      await loadStaff();
-    } catch {
-      toast.error('Failed to update staff');
-    } finally {
-      setIsSaving(false);
-    }
+    updateStaff.mutate({ id: editingStaff.id, data: editingStaff }, {
+      onSuccess: () => {
+        toast.success('Staff updated');
+        setShowEditModal(false);
+        setEditingStaff(null);
+      },
+      onError: () => toast.error('Update failed')
+    });
   };
 
-  // ─── DELETE STAFF ──────────────────────────────────────
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to remove this staff member?')) return;
-    try {
-      await staffApi.remove(id);
-      toast.success('Staff member removed');
-      await loadStaff();
-    } catch {
-      toast.error('Failed to remove staff');
-    }
+    if (!confirm('Remove this staff?')) return;
+    deleteStaff.mutate(id, {
+      onSuccess: () => toast.success('Staff removed'),
+      onError: () => toast.error('Remove failed')
+    });
   };
 
-  // ─── PAY INDIVIDUAL ────────────────────────────────────
   const handlePayIndividual = async (s: any) => {
     if (!confirm(`Pay ${s.name} ${formatPay(s.monthlySalary)}?`)) return;
+    payStaff.mutate(s.id, {
+      onSuccess: () => toast.success(`Paid ${s.name}`),
+      onError: () => toast.error('Payment failed')
+    });
+  };
+
+  const handlePayAll = async () => {
+    payAllMutation.mutate({
+      ids: selected.length > 0 ? selected : undefined,
+      reason: payReason,
+    }, {
+      onSuccess: (result: any) => {
+        const paidIds = staffData
+          .filter((s: any) => selected.length === 0 || selected.includes(s.id))
+          .filter((s: any) => s.status === 'ACTIVE')
+          .map((s: any) => s.id);
+        setPaidStaffIds(prev => new Set([...prev, ...paidIds]));
+        toast.success(`Payroll complete! Paid ${result.data.staffCount}`);
+        setSelected([]);
+        setShowPayModal(false);
+      },
+      onError: (e: any) => toast.error(e?.response?.data?.message || 'Bulk payment failed')
+    });
+  };
+
+  // Paystack Funding
+  const config = {
+    reference: (new Date()).getTime().toString(),
+    email: userEmail || 'user@bizhub.ng',
+    amount: parseInt(fundAmount.replace(/\D/g, '')) * 100, // in kobo
+    publicKey: (import.meta as any).env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_d2d6c6a6e5b4c1a2f3e4d5c6b7a8',
+  };
+
+  const initializePayment = usePaystackPayment(config);
+
+  const onSuccess = async (reference: any) => {
+    setIsFunding(true);
     try {
-      await staffApi.pay(s.id, s.monthlySalary, 'Monthly salary');
-      setPaidStaffIds((prev) => new Set([...prev, s.id]));
-      toast.success(`✅ Paid ${s.name} — ${formatPay(s.monthlySalary)}`);
-    } catch {
-      toast.error(`Payment to ${s.name} failed`);
+      await dashboardApi.verifyFunding(reference.reference);
+      toast.success("Funding successful!");
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard_summary'] });
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || "Verification failed");
+    } finally {
+      setIsFunding(false);
+      setShowFundModal(false);
+      setFundAmount('');
     }
   };
 
-  // ─── BULK PAY ALL ──────────────────────────────────────
-  const handlePayAll = async () => {
-    setIsSaving(true);
-    try {
-      const result = await staffApi.payAll(
-        selected.length > 0 ? selected : undefined,
-        payReason,
-      );
-      const paidIds = staff
-        .filter((s) => selected.length === 0 || selected.includes(s.id))
-        .filter((s) => s.status === 'ACTIVE')
-        .map((s) => s.id);
-      setPaidStaffIds((prev) => new Set([...prev, ...paidIds]));
-      toast.success(`✅ Payroll complete! Paid ${result.data.staffCount} staff — ${formatPay(result.data.totalAmount)}`);
-      setSelected([]);
-      setShowPayModal(false);
-    } catch {
-      toast.error('Bulk payment failed');
-    } finally {
-      setIsSaving(false);
-    }
+  const onClose = () => {
+    toast.info("Transaction cancelled");
+    setIsFunding(false);
+  };
+
+  const handleFund = () => {
+    if (!fundAmount) return;
+    setIsFunding(true);
+    initializePayment({ onSuccess, onClose });
   };
 
   const toggleSelect = (id: string) => {
@@ -163,7 +216,11 @@ export function StaffPayrollScreen() {
     );
   };
 
-  const formatPay = (v: number) => `₦${v.toLocaleString('en-NG')}`;
+  const selectedStaffNames = selected.length === 1
+    ? staffData.find((s: any) => s.id === selected[0])?.name || 'User'
+    : '';
+
+  const formatPay = (v: number) => `₦${v?.toLocaleString('en-NG') || '0'}`;
 
   const statusColor = (s: string) => {
     if (s === 'ACTIVE') return 'text-[#00D084] bg-[#00D084]/10';
@@ -177,216 +234,209 @@ export function StaffPayrollScreen() {
     return 'text-[#475569] bg-[#475569]/10';
   };
 
-  const filtered = staff.filter(
-    (s) =>
+  const filtered = staffData.filter(
+    (s: any) =>
       s.name.toLowerCase().includes(search.toLowerCase()) ||
       s.role.toLowerCase().includes(search.toLowerCase()) ||
       (s.department || '').toLowerCase().includes(search.toLowerCase()),
   );
 
-  if (isLoading) {
+  if (staffLoading && staffData.length === 0) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Loader2 size={32} className="text-[#00D084] animate-spin" />
+        <Loader2 size={32} className="text-[var(--accent)] animate-spin" />
       </div>
     );
   }
 
-  const handleSalaryChange = (val: string, isEdit: boolean) => {
-    // Remove non-digit characters
-    const numericStr = val.replace(/\D/g, '');
-    if (!numericStr) {
-      if (isEdit) {
-        setEditingStaff({ ...editingStaff, monthlySalary: 0 });
-      } else {
-        setNewStaff({ ...newStaff, monthlySalary: 0 });
-        setSalaryInput('');
-      }
-      return;
-    }
-    const numericVal = parseInt(numericStr, 10);
-    const formatted = numericVal.toLocaleString('en-US'); // Add commas
-
-    if (isEdit) {
-      setEditingStaff({ ...editingStaff, monthlySalary: numericVal });
-    } else {
-      setNewStaff({ ...newStaff, monthlySalary: numericVal });
-      setSalaryInput(formatted);
-    }
-  };
-
-  const handlePhoneChange = (val: string, isEdit: boolean) => {
-    const numericStr = val.replace(/[^\d+]/g, ''); // Allow digits and +
-    if (isEdit) {
-      setEditingStaff({ ...editingStaff, phone: numericStr });
-    } else {
-      setNewStaff({ ...newStaff, phone: numericStr });
-    }
-  };
-
-  const inputClass = 'w-full bg-[#0F1117] border border-[#1E2535] rounded-xl px-4 py-2.5 text-[#F1F5F9] text-sm focus:outline-none focus:border-[#00D084] transition-colors';
+  const inputClass = 'w-full bg-[var(--bg-primary)] border border-[var(--border-main)] rounded-xl px-4 py-2.5 text-[var(--text-main)] text-sm focus:outline-none focus:border-[var(--accent)] transition-all';
 
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-[#F1F5F9] text-xl font-bold">Staff & Payroll</h2>
-          <p className="text-[#94A3B8] text-sm">{staff.length} total staff members</p>
+          <h2 className="text-[var(--text-main)] text-xl font-bold">Personnel & Payroll</h2>
+          <p className="text-[var(--text-dim)] text-sm">{staffData.length} team members registered</p>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Wallet Balance UI matching mobile */}
-          <div className="bg-[#161B27] border border-[#1E2535] rounded-xl px-4 py-2 mr-2">
-            <p className="text-[#94A3B8] text-xs">Wallet Balance</p>
-            <p className="text-[#00D084] text-lg font-bold">{formatPay(walletBalance)}</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border-main)] rounded-xl px-4 py-2 shadow-sm">
+            <p className="text-[var(--text-dim)] text-[10px] uppercase font-bold tracking-wider">Business Wallet</p>
+            <p className="text-[var(--accent)] text-lg font-black">{formatPay(walletBalance)}</p>
           </div>
 
-          {selected.length > 0 && (
+          <div className="flex items-center gap-2">
+            {selected.length > 0 ? (
+              <button
+                onClick={() => setShowPayModal(true)}
+                className="flex items-center gap-2 bg-[var(--accent)] hover:opacity-90 text-[var(--bg-primary)] font-bold px-4 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-[var(--accent)]/20"
+              >
+                <DollarSign size={16} />
+                Pay {selected.length === 1 ? 'Selected' : `(${selected.length})`}
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowPayModal(true)}
+                className="flex items-center gap-2 bg-[var(--bg-tertiary)] text-[var(--text-main)] hover:bg-[var(--border-main)] font-bold px-4 py-2.5 rounded-xl text-sm transition-all"
+              >
+                <DollarSign size={16} />
+                Run Payroll
+              </button>
+            )}
+            
             <button
-              onClick={() => setShowPayModal(true)}
-              className="flex items-center gap-2 bg-[#00D084] hover:bg-[#00b872] text-[#0F1117] font-bold px-4 py-2.5 rounded-xl text-sm transition-colors"
+              onClick={() => setShowFundModal(true)}
+              className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-blue-500/20"
             >
-              <DollarSign size={16} />
-              Pay Selected ({selected.length})
+              <Plus size={16} />
+              Fund
             </button>
-          )}
-          <button
-            onClick={() => setShowPayModal(true)}
-            className="flex items-center gap-2 bg-[#8B5CF6] hover:bg-[#7C3AED] text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-colors"
-          >
-            <DollarSign size={16} />
-            Pay All
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 bg-[#00D084] hover:bg-[#00b872] text-[#0F1117] font-bold px-4 py-2.5 rounded-xl text-sm transition-colors"
-          >
-            <Plus size={16} />
-            Add Staff
-          </button>
+            
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 bg-[var(--accent)] text-[var(--bg-primary)] font-bold px-4 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-[var(--accent)]/20"
+            >
+              <Plus size={16} />
+              Add Staff
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#475569]" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search staff by name, role, department..."
-          className="w-full bg-[#161B27] border border-[#1E2535] rounded-xl pl-11 pr-4 py-2.5 text-[#F1F5F9] text-sm placeholder-[#475569] focus:outline-none focus:border-[#00D084]"
-        />
+      {/* Search & Utility */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, role or department..."
+            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-main)] rounded-xl pl-11 pr-4 py-2.5 text-[var(--text-main)] text-sm placeholder-[var(--text-dim)] focus:outline-none focus:border-[var(--accent)] transition-all"
+          />
+        </div>
+        <button 
+          onClick={() => queryClient.invalidateQueries({ queryKey: ['staff_list'] })}
+          className="p-2.5 bg-[var(--bg-secondary)] border border-[var(--border-main)] rounded-xl text-[var(--text-dim)] hover:text-[var(--accent)] transition-all"
+        >
+          <RefreshCw size={18} className={staffLoading ? 'animate-spin' : ''} />
+        </button>
       </div>
 
       {/* Staff Table */}
       {filtered.length === 0 ? (
-        <div className="bg-[#161B27] border border-[#1E2535] rounded-2xl p-12 text-center">
-          <UserX size={48} className="text-[#475569] mx-auto mb-4" />
-          <h3 className="text-[#F1F5F9] text-lg font-semibold mb-2">No Staff Members</h3>
-          <p className="text-[#94A3B8] text-sm mb-4">Add your first staff member to get started</p>
+        <div className="bg-[var(--bg-secondary)] border border-[var(--border-main)] rounded-2xl p-12 text-center shadow-sm">
+          <UserX size={48} className="text-[var(--text-dim)] mx-auto mb-4 opacity-20" />
+          <h3 className="text-[var(--text-main)] text-lg font-bold mb-1">No results found</h3>
+          <p className="text-[var(--text-dim)] text-sm mb-6">Try adjusting your search or add a new staff member.</p>
           <button
             onClick={() => setShowAddModal(true)}
-            className="bg-[#00D084] hover:bg-[#00b872] text-[#0F1117] font-bold px-6 py-2.5 rounded-xl text-sm"
+            className="bg-[var(--accent)] text-[var(--bg-primary)] font-bold px-6 py-2.5 rounded-xl text-sm hover:scale-105 transition-transform"
           >
-            <Plus size={16} className="inline mr-2" /> Add Staff
+            <Plus size={16} className="inline mr-2" /> Register Staff
           </button>
         </div>
       ) : (
-        <div className="bg-[#161B27] border border-[#1E2535] rounded-2xl overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-[#1E2535]">
-                <th className="text-left text-[#94A3B8] text-xs font-medium py-3 px-4 w-8" />
-                <th className="text-left text-[#94A3B8] text-xs font-medium py-3 px-4">Name</th>
-                <th className="text-left text-[#94A3B8] text-xs font-medium py-3 px-4">Role</th>
-                <th className="text-left text-[#94A3B8] text-xs font-medium py-3 px-4">Dept</th>
-                <th className="text-left text-[#94A3B8] text-xs font-medium py-3 px-4">Pay</th>
-                <th className="text-left text-[#94A3B8] text-xs font-medium py-3 px-4">Status</th>
-                <th className="text-left text-[#94A3B8] text-xs font-medium py-3 px-4">Invite</th>
-                <th className="text-left text-[#94A3B8] text-xs font-medium py-3 px-4">Paid</th>
-                <th className="text-left text-[#94A3B8] text-xs font-medium py-3 px-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((s) => (
-                <tr key={s.id} className="border-b border-[#1E2535] hover:bg-[#1A1F2E] transition-colors">
-                  <td className="py-3 px-4">
-                    <button onClick={() => toggleSelect(s.id)}>
-                      {selected.includes(s.id) ? (
-                        <CheckSquare size={16} className="text-[#00D084]" />
+        <div className="bg-[var(--bg-secondary)] border border-[var(--border-main)] rounded-2xl overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-[var(--border-main)] bg-[var(--bg-tertiary)]/50">
+                  <th className="py-4 px-6 w-8">
+                    <button onClick={() => {
+                      if (selected.length === filtered.length) setSelected([]);
+                      else setSelected(filtered.map((s: any) => s.id));
+                    }}>
+                      {selected.length === filtered.length && filtered.length > 0 ? (
+                        <CheckSquare size={18} className="text-[var(--accent)]" />
                       ) : (
-                        <Square size={16} className="text-[#475569]" />
+                        <Square size={18} className="text-[var(--text-dim)]" />
                       )}
                     </button>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                        style={{ backgroundColor: s.avatarColor || '#3B82F6' }}
-                      >
-                        {s.avatarInitials || s.name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="text-[#F1F5F9] text-sm font-medium">{s.name}</p>
-                        <p className="text-[#475569] text-xs">{s.email || '—'}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-[#F1F5F9] text-sm">{s.role}</td>
-                  <td className="py-3 px-4 text-[#94A3B8] text-sm">{s.department || '—'}</td>
-                  <td className="py-3 px-4 text-[#F1F5F9] text-sm font-medium">{formatPay(s.monthlySalary)}</td>
-                  <td className="py-3 px-4">
-                    <span className={`text-xs font-medium px-2 py-1 rounded-lg ${statusColor(s.status)}`}>
-                      {s.status.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className={`text-xs font-medium px-2 py-1 rounded-lg ${inviteColor(s.inviteStatus || 'NONE')}`}>
-                      {s.inviteStatus === 'PENDING' && <><Mail size={10} className="inline mr-1" />Pending</>}
-                      {s.inviteStatus === 'ACCEPTED' && <><Check size={10} className="inline mr-1" />Accepted</>}
-                      {(!s.inviteStatus || s.inviteStatus === 'NONE') && '—'}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    {paidStaffIds.has(s.id) ? (
-                      <span className="text-xs font-bold px-2 py-1 rounded-lg text-[#00D084] bg-[#00D084]/10 flex items-center gap-1 w-fit">
-                        <Check size={12} /> PAID
-                      </span>
-                    ) : (
-                      <span className="text-[#475569] text-xs">—</span>
-                    )}
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handlePayIndividual(s)}
-                        title="Pay"
-                        className="p-1.5 hover:bg-[#00D084]/10 rounded-lg transition-colors"
-                      >
-                        <DollarSign size={14} className="text-[#00D084]" />
-                      </button>
-                      <button
-                        onClick={() => { setEditingStaff({ ...s }); setShowEditModal(true); }}
-                        title="Edit"
-                        className="p-1.5 hover:bg-[#3B82F6]/10 rounded-lg transition-colors"
-                      >
-                        <Edit2 size={14} className="text-[#3B82F6]" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(s.id)}
-                        title="Remove"
-                        className="p-1.5 hover:bg-[#EF4444]/10 rounded-lg transition-colors"
-                      >
-                        <Trash2 size={14} className="text-[#EF4444]" />
-                      </button>
-                    </div>
-                  </td>
+                  </th>
+                  <th className="py-4 px-4 text-[var(--text-dim)] text-[10px] uppercase font-black tracking-widest">Personnel</th>
+                  <th className="py-4 px-4 text-[var(--text-dim)] text-[10px] uppercase font-black tracking-widest">Role & Dept</th>
+                  <th className="py-4 px-4 text-[var(--text-dim)] text-[10px] uppercase font-black tracking-widest">Compensation</th>
+                  <th className="py-4 px-4 text-[var(--text-dim)] text-[10px] uppercase font-black tracking-widest">Status</th>
+                  <th className="py-4 px-4 text-[var(--text-dim)] text-[10px] uppercase font-black tracking-widest">Activity</th>
+                  <th className="py-4 px-4 text-right"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-[var(--border-main)]">
+                {filtered.map((s: any) => (
+                  <tr key={s.id} className="hover:bg-[var(--bg-tertiary)]/30 transition-colors group">
+                    <td className="py-4 px-6">
+                      <button onClick={() => toggleSelect(s.id)}>
+                        {selected.includes(s.id) ? (
+                          <CheckSquare size={18} className="text-[var(--accent)]" />
+                        ) : (
+                          <Square size={18} className="text-[var(--text-dim)] group-hover:text-[var(--accent)]/50 transition-colors" />
+                        )}
+                      </button>
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-black shadow-lg">
+                          {s.avatarInitials || s.name.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-[var(--text-main)] text-sm font-bold">{s.name}</p>
+                          <p className="text-[var(--text-dim)] text-[10px]">{s.email || 'No email provided'}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4">
+                      <p className="text-[var(--text-main)] text-sm font-medium">{s.role}</p>
+                      <p className="text-[var(--text-dim)] text-[10px] font-bold uppercase tracking-tighter mt-0.5">{s.department || 'General'}</p>
+                    </td>
+                    <td className="py-4 px-4">
+                      <p className="text-[var(--text-main)] text-sm font-black">{formatPay(s.monthlySalary)}</p>
+                      <p className="text-[var(--text-dim)] text-[8px] uppercase font-medium">Per Month</p>
+                    </td>
+                    <td className="py-4 px-4">
+                      <span className={`text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-wider ${statusColor(s.status)}`}>
+                        {s.status.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4">
+                      {paidStaffIds.has(s.id) ? (
+                        <div className="flex items-center gap-1.5 text-[#00D084] font-black text-[10px] bg-[#00D084]/10 px-2 py-1 rounded-lg w-fit">
+                          <Check size={12} strokeWidth={3} /> SETTLED
+                        </div>
+                      ) : (
+                        <span className="text-[var(--text-dim)] text-[10px] font-medium italic opacity-50">Awaiting payment</span>
+                      )}
+                    </td>
+                    <td className="py-4 px-4 text-right">
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handlePayIndividual(s)}
+                          className="p-2 hover:bg-[#00D084]/10 rounded-xl text-[#00D084] transition-all"
+                          title="Pay Salary"
+                        >
+                          <DollarSign size={16} />
+                        </button>
+                        <button
+                          onClick={() => { setEditingStaff({ ...s }); setShowEditModal(true); }}
+                          className="p-2 hover:bg-blue-500/10 rounded-xl text-blue-500 transition-all"
+                          title="Edit Personal"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(s.id)}
+                          className="p-2 hover:bg-red-500/10 rounded-xl text-red-500 transition-all"
+                          title="Remove from Team"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -395,80 +445,84 @@ export function StaffPayrollScreen() {
         {showAddModal && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
             onClick={() => setShowAddModal(false)}
           >
             <motion.div
-              initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-              className="bg-[#161B27] border border-[#1E2535] rounded-2xl p-6 w-full max-w-lg"
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="bg-[var(--bg-secondary)] border border-[var(--border-main)] rounded-3xl p-8 w-full max-w-2xl shadow-2xl relative overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-[#F1F5F9] text-lg font-semibold">Add New Staff</h3>
-                <button onClick={() => setShowAddModal(false)}><X size={18} className="text-[#94A3B8]" /></button>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--accent)]/5 rounded-full -mr-16 -mt-16 blur-2xl" />
+              
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-[var(--text-main)] text-xl font-bold">New Staff Enrollment</h3>
+                  <p className="text-[var(--text-dim)] text-xs">Fill in the details to add a new member to your team.</p>
+                </div>
+                <button 
+                  onClick={() => setShowAddModal(false)}
+                  className="p-2 hover:bg-[var(--bg-tertiary)] rounded-full text-[var(--text-dim)] transition-colors"
+                >
+                  <X size={20} />
+                </button>
               </div>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div className="space-y-4">
                   <div>
-                    <label className="block text-[#94A3B8] text-xs mb-1">Full Name *</label>
-                    <input value={newStaff.name} onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })} className={inputClass} placeholder="John Doe" />
+                    <label className="block text-[var(--text-dim)] text-[10px] uppercase font-black mb-1.5 ml-1">Full Name</label>
+                    <input value={newStaff.name} onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })} className={inputClass} placeholder="Jane Doe" />
                   </div>
                   <div>
-                    <label className="block text-[#94A3B8] text-xs mb-1">Job Role *</label>
-                    <input value={newStaff.role} onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value })} className={inputClass} placeholder="Cashier" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[#94A3B8] text-xs mb-1">Email (for invitation)</label>
-                    <input value={newStaff.email} onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })} className={inputClass} placeholder="email@example.com" />
+                    <label className="block text-[var(--text-dim)] text-[10px] uppercase font-black mb-1.5 ml-1">Work Email</label>
+                    <input value={newStaff.email} onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })} className={inputClass} placeholder="jane@company.com" />
                   </div>
                   <div>
-                    <label className="block text-[#94A3B8] text-xs mb-1">Phone</label>
-                    <input value={newStaff.phone} onChange={(e) => handlePhoneChange(e.target.value, false)} className={inputClass} placeholder="+234..." />
+                    <label className="block text-[var(--text-dim)] text-[10px] uppercase font-black mb-1.5 ml-1">Job Role</label>
+                    <input value={newStaff.role} onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value })} className={inputClass} placeholder="Operations Lead" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <div>
-                    <label className="block text-[#94A3B8] text-xs mb-1">Department</label>
+                    <label className="block text-[var(--text-dim)] text-[10px] uppercase font-black mb-1.5 ml-1">Phone Number</label>
+                    <input value={newStaff.phone} onChange={(e) => setNewStaff({ ...newStaff, phone: e.target.value.replace(/[^\d+]/g, '') })} className={inputClass} placeholder="+234..." />
+                  </div>
+                  <div>
+                    <label className="block text-[var(--text-dim)] text-[10px] uppercase font-black mb-1.5 ml-1">Department</label>
                     <select value={newStaff.department} onChange={(e) => setNewStaff({ ...newStaff, department: e.target.value })} className={inputClass}>
-                      <option value="">No Department</option>
-                      {departments.map((d) => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
+                      <option value="">Select Dept</option>
+                      {departments.map((d: any) => <option key={d} value={d}>{d}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[#94A3B8] text-xs mb-1">Monthly Salary (₦)</label>
-                    <input type="text" value={salaryInput} onChange={(e) => handleSalaryChange(e.target.value, false)} className={inputClass} placeholder="50,000" />
+                    <label className="block text-[var(--text-dim)] text-[10px] uppercase font-black mb-1.5 ml-1">Monthly Salary (₦)</label>
+                    <input value={newStaff.monthlySalary?.toLocaleString('en-US') || ''} onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setNewStaff({ ...newStaff, monthlySalary: parseInt(val) || 0 });
+                    }} className={inputClass} placeholder="150,000" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[#94A3B8] text-xs mb-1">Bank Name</label>
-                    <input value={newStaff.bankName} onChange={(e) => setNewStaff({ ...newStaff, bankName: e.target.value })} className={inputClass} placeholder="GTBank" />
-                  </div>
-                  <div>
-                    <label className="block text-[#94A3B8] text-xs mb-1">Account Number</label>
-                    <input value={newStaff.accountNumber} onChange={(e) => setNewStaff({ ...newStaff, accountNumber: e.target.value })} className={inputClass} placeholder="0123456789" />
-                  </div>
-                </div>
-                {newStaff.email && (
-                  <div className="bg-[#00D084]/5 border border-[#00D084]/20 rounded-xl px-4 py-3 flex items-center gap-3">
-                    <Mail size={16} className="text-[#00D084] flex-shrink-0" />
-                    <p className="text-[#94A3B8] text-xs">
-                      An invitation email will be sent to <span className="text-[#F1F5F9] font-medium">{newStaff.email}</span> to join as staff
-                    </p>
-                  </div>
-                )}
-                <button
-                  onClick={handleCreate}
-                  disabled={isSaving || !newStaff.name || !newStaff.role}
-                  className="w-full bg-[#00D084] hover:bg-[#00b872] disabled:opacity-50 text-[#0F1117] font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2"
-                >
-                  {isSaving ? <Loader2 size={16} className="animate-spin" /> : <><Plus size={16} /> Add Staff & Send Invite</>}
-                </button>
               </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                <div>
+                  <label className="block text-[var(--text-dim)] text-[10px] uppercase font-black mb-1.5 ml-1">Bank Name</label>
+                  <input value={newStaff.bankName} onChange={(e) => setNewStaff({ ...newStaff, bankName: e.target.value })} className={inputClass} placeholder="Access Bank" />
+                </div>
+                <div>
+                  <label className="block text-[var(--text-dim)] text-[10px] uppercase font-black mb-1.5 ml-1">Account Number</label>
+                  <input value={newStaff.accountNumber} onChange={(e) => setNewStaff({ ...newStaff, accountNumber: e.target.value })} className={inputClass} placeholder="0123456789" />
+                </div>
+              </div>
+
+              <button
+                onClick={handleCreate}
+                disabled={createStaff.isPending}
+                className="w-full bg-[var(--accent)] text-[var(--bg-primary)] font-black py-4 rounded-2xl text-sm flex items-center justify-center gap-3 hover:opacity-90 active:scale-95 transition-all shadow-xl shadow-[var(--accent)]/20"
+              >
+                {createStaff.isPending ? <Loader2 size={18} className="animate-spin" /> : <><Check size={18} /> Confirm Registration</>}
+              </button>
             </motion.div>
           </motion.div>
         )}
@@ -479,121 +533,177 @@ export function StaffPayrollScreen() {
         {showEditModal && editingStaff && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
             onClick={() => { setShowEditModal(false); setEditingStaff(null); }}
           >
             <motion.div
-              initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-              className="bg-[#161B27] border border-[#1E2535] rounded-2xl p-6 w-full max-w-lg"
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="bg-[var(--bg-secondary)] border border-[var(--border-main)] rounded-3xl p-8 w-full max-w-lg shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-[#F1F5F9] text-lg font-semibold">Edit Staff</h3>
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-[var(--text-main)] text-xl font-bold">Update Profile</h3>
                 <button onClick={() => { setShowEditModal(false); setEditingStaff(null); }}>
-                  <X size={18} className="text-[#94A3B8]" />
+                  <X size={20} className="text-[var(--text-dim)]" />
                 </button>
               </div>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[#94A3B8] text-xs mb-1">Full Name</label>
-                    <input value={editingStaff.name} onChange={(e) => setEditingStaff({ ...editingStaff, name: e.target.value })} className={inputClass} />
-                  </div>
-                  <div>
-                    <label className="block text-[#94A3B8] text-xs mb-1">Job Role</label>
-                    <input value={editingStaff.role} onChange={(e) => setEditingStaff({ ...editingStaff, role: e.target.value })} className={inputClass} />
-                  </div>
+              
+              <div className="space-y-6 mb-8">
+                <div>
+                  <label className="block text-[var(--text-dim)] text-[10px] uppercase font-black mb-1.5 ml-1">Full Name</label>
+                  <input value={editingStaff.name} onChange={(e) => setEditingStaff({ ...editingStaff, name: e.target.value })} className={inputClass} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[#94A3B8] text-xs mb-1">Department</label>
-                    <select value={editingStaff.department || ''} onChange={(e) => setEditingStaff({ ...editingStaff, department: e.target.value })} className={inputClass}>
-                      <option value="">No Department</option>
-                      {departments.map((d) => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
-                    </select>
+                    <label className="block text-[var(--text-dim)] text-[10px] uppercase font-black mb-1.5 ml-1">Role</label>
+                    <input value={editingStaff.role} onChange={(e) => setEditingStaff({ ...editingStaff, role: e.target.value })} className={inputClass} />
                   </div>
                   <div>
-                    <label className="block text-[#94A3B8] text-xs mb-1">Monthly Salary (₦)</label>
-                    <input type="text" value={editingStaff.monthlySalary ? editingStaff.monthlySalary.toLocaleString('en-US') : ''} onChange={(e) => handleSalaryChange(e.target.value, true)} className={inputClass} />
+                    <label className="block text-[var(--text-dim)] text-[10px] uppercase font-black mb-1.5 ml-1">Monthly Pay (₦)</label>
+                    <input 
+                      value={editingStaff.monthlySalary?.toLocaleString('en-US') || ''} 
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '');
+                        setEditingStaff({ ...editingStaff, monthlySalary: parseInt(val) || 0 });
+                      }} 
+                      className={inputClass} 
+                    />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[#94A3B8] text-xs mb-1">Status</label>
+                  <label className="block text-[var(--text-dim)] text-[10px] uppercase font-black mb-1.5 ml-1">Employment Status</label>
                   <select value={editingStaff.status} onChange={(e) => setEditingStaff({ ...editingStaff, status: e.target.value })} className={inputClass}>
                     <option value="ACTIVE">Active</option>
                     <option value="ON_LEAVE">On Leave</option>
                     <option value="SUSPENDED">Suspended</option>
                   </select>
                 </div>
-                <button
-                  onClick={handleUpdate}
-                  disabled={isSaving}
-                  className="w-full bg-[#3B82F6] hover:bg-[#2563EB] disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2"
-                >
-                  {isSaving ? <Loader2 size={16} className="animate-spin" /> : <><Save size={16} /> Save Changes</>}
-                </button>
               </div>
+
+              <button
+                onClick={handleUpdate}
+                disabled={updateStaff.isPending}
+                className="w-full bg-blue-500 text-white font-black py-4 rounded-2xl text-sm flex items-center justify-center gap-3 hover:bg-blue-600 transition-all shadow-xl shadow-blue-500/20"
+              >
+                {updateStaff.isPending ? <Loader2 size={18} className="animate-spin" /> : <><Save size={18} /> Update Details</>}
+              </button>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Pay All Modal */}
+      {/* Pay All/Selected Modal */}
       <AnimatePresence>
         {showPayModal && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
             onClick={() => setShowPayModal(false)}
           >
             <motion.div
-              initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-              className="bg-[#161B27] border border-[#1E2535] rounded-2xl p-6 w-full max-w-md"
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="bg-[var(--bg-secondary)] border border-[var(--border-main)] rounded-3xl p-8 w-full max-w-md shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-[#F1F5F9] text-lg font-semibold">
-                  {selected.length > 0 ? `Pay ${selected.length} Selected` : 'Pay All Staff'}
-                </h3>
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-[var(--text-main)] text-xl font-bold">Process Payroll</h3>
                 <button onClick={() => setShowPayModal(false)}>
-                  <X size={18} className="text-[#94A3B8]" />
+                  <X size={20} className="text-[var(--text-dim)]" />
                 </button>
               </div>
-              <div className="space-y-4">
-                <div className="bg-[#0F1117] rounded-xl p-4 border border-[#1E2535]">
-                  <p className="text-[#94A3B8] text-xs mb-1">Total Amount</p>
-                  <p className="text-[#F1F5F9] text-2xl font-bold">
-                    {formatPay(
-                      staff
-                        .filter((s) => selected.length === 0 || selected.includes(s.id))
-                        .filter((s) => s.status === 'ACTIVE')
-                        .reduce((sum: number, s: any) => sum + s.monthlySalary, 0),
-                    )}
-                  </p>
-                  <p className="text-[#475569] text-xs mt-1">
-                    {staff.filter((s) => selected.length === 0 || selected.includes(s.id)).filter((s) => s.status === 'ACTIVE').length} active staff
+
+              <div className="bg-[var(--bg-tertiary)]/50 rounded-2xl p-6 border border-[var(--border-main)] mb-6 text-center">
+                <p className="text-[var(--text-dim)] text-xs font-bold uppercase tracking-wider mb-2">Total Estimated Payout</p>
+                <p className="text-[var(--text-main)] text-3xl font-black">
+                  {formatPay(
+                    staffData
+                      .filter((s: any) => selected.length === 0 || selected.includes(s.id))
+                      .filter((s: any) => s.status === 'ACTIVE')
+                      .reduce((sum: number, s: any) => sum + s.monthlySalary, 0)
+                  )}
+                </p>
+                <div className="flex items-center justify-center gap-2 mt-3">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
+                  <p className="text-[var(--text-dim)] text-[10px] font-bold">
+                    {staffData.filter((s: any) => (selected.length === 0 || selected.includes(s.id)) && s.status === 'ACTIVE').length} RECIPIENTS
                   </p>
                 </div>
+              </div>
+
+              <div className="mb-8">
+                <label className="block text-[var(--text-dim)] text-[10px] uppercase font-black mb-1.5 ml-1">Purpose of Payment</label>
+                <input value={payReason} onChange={(e) => setPayReason(e.target.value)} className={inputClass} placeholder="Monthly Salary Cycle" />
+              </div>
+
+              <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-4 flex items-center gap-4 mb-8">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                  <CreditCard size={20} />
+                </div>
+                <p className="text-[var(--text-dim)] text-xs leading-relaxed">
+                  Funds will be deducted from your <span className="text-[var(--text-main)] font-bold">Bizhub Wallet</span> immediately.
+                </p>
+              </div>
+
+              <button
+                onClick={handlePayAll}
+                disabled={payAllMutation.isPending}
+                className="w-full bg-[var(--accent)] text-[var(--bg-primary)] font-black py-4 rounded-2xl text-sm flex items-center justify-center gap-3 hover:opacity-90 transition-all shadow-xl shadow-[var(--accent)]/20"
+              >
+                {payAllMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <><DollarSign size={18} /> Execute Payout</>}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Fund Modal */}
+      <AnimatePresence>
+        {showFundModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowFundModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="bg-[var(--bg-secondary)] border border-[var(--border-main)] rounded-3xl p-8 w-full max-w-sm shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-[var(--text-main)] text-xl font-bold">Wallet Top-up</h3>
+                <button onClick={() => setShowFundModal(false)}>
+                  <X size={20} className="text-[var(--text-dim)]" />
+                </button>
+              </div>
+
+              <div className="space-y-6 mb-8">
                 <div>
-                  <label className="block text-[#94A3B8] text-xs mb-1">Reason</label>
-                  <input value={payReason} onChange={(e) => setPayReason(e.target.value)} className={inputClass} placeholder="Monthly salary" />
+                  <label className="block text-[var(--text-dim)] text-[10px] uppercase font-black mb-1.5 ml-1">Amount to Add (₦)</label>
+                  <input
+                    type="text"
+                    value={fundAmount}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setFundAmount(val ? parseInt(val).toLocaleString('en-US') : '');
+                    }}
+                    className={inputClass}
+                    placeholder="e.g. 100,000"
+                  />
                 </div>
-                <div className="bg-[#8B5CF6]/5 border border-[#8B5CF6]/20 rounded-xl px-4 py-3 flex items-center gap-3">
-                  <CreditCard size={16} className="text-[#8B5CF6] flex-shrink-0" />
-                  <p className="text-[#94A3B8] text-xs">
-                    Payment processed via <span className="text-[#F1F5F9] font-medium">Paystack</span>
-                  </p>
+                
+                <div className="p-4 bg-[var(--bg-tertiary)]/50 rounded-2xl border border-[var(--border-main)] flex items-center gap-3">
+                  <div className="text-[20px]">💳</div>
+                  <p className="text-[var(--text-dim)] text-[10px] leading-tight">Secure checkout provided by <span className="text-[var(--text-main)] font-black">Paystack</span>. Supports Cards, Transfer, and USSD.</p>
                 </div>
-                <button
-                  onClick={handlePayAll}
-                  disabled={isSaving}
-                  className="w-full bg-[#00D084] hover:bg-[#00b872] disabled:opacity-50 text-[#0F1117] font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2"
-                >
-                  {isSaving ? <Loader2 size={16} className="animate-spin" /> : <><DollarSign size={16} /> Process Payroll</>}
-                </button>
               </div>
+
+              <button
+                disabled={isFunding || !fundAmount}
+                onClick={handleFund}
+                className="w-full bg-[var(--accent)] text-[var(--bg-primary)] font-black py-4 rounded-2xl text-sm flex items-center justify-center gap-3 shadow-xl shadow-[var(--accent)]/20 hover:opacity-90 active:scale-95 transition-all"
+              >
+                {isFunding ? <Loader2 size={18} className="animate-spin" /> : <span>Initialize Payment</span>}
+              </button>
             </motion.div>
           </motion.div>
         )}

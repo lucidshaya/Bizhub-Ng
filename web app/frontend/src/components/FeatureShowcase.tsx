@@ -9,58 +9,59 @@ import {
   FileText,
   Users,
   PieChart,
-  BarChart3 } from
-'lucide-react';
+  BarChart3
+} from
+  'lucide-react';
 const features = [
-{
-  id: 1,
-  title: 'Payroll',
-  description:
-  'Pay staff on time, every time. Auto-calculate taxes and pension.',
-  color: 'bg-darkGreen',
-  icon: <Wallet className="w-8 h-8 text-white" />
-},
-{
-  id: 2,
-  title: 'Inventory',
-  description:
-  'Track every item. Never run out of stock again. Low stock alerts.',
-  color: 'bg-gold',
-  textColor: 'text-gray-900',
-  icon: <Package className="w-8 h-8 text-gray-900" />
-},
-{
-  id: 3,
-  title: 'Invoicing',
-  description:
-  'Send professional invoices in seconds. Get paid faster via transfer.',
-  color: 'bg-coral',
-  icon: <FileText className="w-8 h-8 text-white" />
-},
-{
-  id: 4,
-  title: 'HR & Staff',
-  description:
-  'Manage your team like a pro. Leave requests, loans, and performance.',
-  color: 'bg-purple',
-  icon: <Users className="w-8 h-8 text-white" />
-},
-{
-  id: 5,
-  title: 'Accounting',
-  description:
-  'Know your numbers. Grow your profit. Expense tracking made simple.',
-  color: 'bg-blue',
-  icon: <PieChart className="w-8 h-8 text-white" />
-},
-{
-  id: 6,
-  title: 'Reports',
-  description:
-  'Real-time insights. Make better decisions with clear data visualization.',
-  color: 'bg-teal',
-  icon: <BarChart3 className="w-8 h-8 text-white" />
-}];
+  {
+    id: 1,
+    title: 'Payroll',
+    description:
+      'Pay staff on time, every time. Auto-calculate taxes and pension.',
+    color: 'bg-darkGreen',
+    icon: <Wallet className="w-8 h-8 text-white" />
+  },
+  {
+    id: 2,
+    title: 'Inventory',
+    description:
+      'Track every item. Never run out of stock again. Low stock alerts.',
+    color: 'bg-gold',
+    textColor: 'text-gray-900',
+    icon: <Package className="w-8 h-8 text-gray-900" />
+  },
+  {
+    id: 3,
+    title: 'Invoicing',
+    description:
+      'Send professional invoices in seconds. Get paid faster via transfer.',
+    color: 'bg-coral',
+    icon: <FileText className="w-8 h-8 text-white" />
+  },
+  {
+    id: 4,
+    title: 'HR & Staff',
+    description:
+      'Manage your team like a pro. Leave requests, loans, and performance.',
+    color: 'bg-purple',
+    icon: <Users className="w-8 h-8 text-white" />
+  },
+  {
+    id: 5,
+    title: 'Accounting',
+    description:
+      'Know your numbers. Grow your profit. Expense tracking made simple.',
+    color: 'bg-blue',
+    icon: <PieChart className="w-8 h-8 text-white" />
+  },
+  {
+    id: 6,
+    title: 'Reports',
+    description:
+      'Real-time insights. Make better decisions with clear data visualization.',
+    color: 'bg-teal',
+    icon: <BarChart3 className="w-8 h-8 text-white" />
+  }];
 
 export function FeatureShowcase() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -70,9 +71,9 @@ export function FeatureShowcase() {
       const currentScroll = scrollContainerRef.current.scrollLeft;
       scrollContainerRef.current.scrollTo({
         left:
-        direction === 'left' ?
-        currentScroll - scrollAmount :
-        currentScroll + scrollAmount,
+          direction === 'left' ?
+            currentScroll - scrollAmount :
+            currentScroll + scrollAmount,
         behavior: 'smooth'
       });
     }
@@ -117,37 +118,37 @@ export function FeatureShowcase() {
         }}>
 
         {features.map((feature) =>
-        <motion.div
-          key={feature.id}
-          whileHover={{
-            y: -10
-          }}
-          className={`min-w-[300px] md:min-w-[350px] h-[450px] ${feature.color} rounded-3xl p-8 flex flex-col justify-between snap-center shadow-xl flex-shrink-0`}>
+          <motion.div
+            key={feature.id}
+            whileHover={{
+              y: -10
+            }}
+            className={`min-w-[300px] md:min-w-[350px] h-[450px] ${feature.color} rounded-3xl p-8 flex flex-col justify-between snap-center shadow-xl flex-shrink-0`}>
 
             <div>
               <div className="bg-white/20 w-16 h-16 rounded-2xl flex items-center justify-center mb-8 backdrop-blur-sm">
                 {feature.icon}
               </div>
               <h3
-              className={`text-3xl font-bold mb-4 ${feature.textColor || 'text-white'}`}>
+                className={`text-3xl font-bold mb-4 ${feature.textColor || 'text-white'}`}>
 
                 {feature.title}
               </h3>
               <p
-              className={`text-lg font-medium leading-relaxed ${feature.textColor ? 'text-gray-800' : 'text-white/90'}`}>
+                className={`text-lg font-medium leading-relaxed ${feature.textColor ? 'text-gray-800' : 'text-white/90'}`}>
 
                 {feature.description}
               </p>
             </div>
 
             <a
-            href="#"
-            className={`inline-flex items-center gap-2 font-bold text-lg group ${feature.textColor || 'text-white'}`}>
+              href="/signup"
+              className={`inline-flex items-center gap-2 font-bold text-lg group ${feature.textColor || 'text-white'}`}>
 
               Learn More
               <ArrowRight
-              size={20}
-              className="transform group-hover:translate-x-1 transition-transform" />
+                size={20}
+                className="transform group-hover:translate-x-1 transition-transform" />
 
             </a>
           </motion.div>

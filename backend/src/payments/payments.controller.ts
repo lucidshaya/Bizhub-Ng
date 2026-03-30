@@ -21,6 +21,12 @@ export class PaymentsController {
         return this.payments.paystackVerify(dto.reference);
     }
 
+    @UseGuards(JwtAuthGuard)
+    @Post('paystack/verify-funding')
+    async paystackVerifyFunding(@Req() req: any, @Body() dto: VerifyPaymentDto) {
+        return this.payments.verifyWalletFunding(dto.reference, req.user.sub); 
+    }
+
     @Post('paystack/webhook')
     @HttpCode(200)
     async paystackWebhook(@Body() body: any) {

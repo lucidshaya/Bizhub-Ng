@@ -6,21 +6,40 @@
 @import 'tailwindcss/utilities';
 
 :root {
-  --primary: #006B3C;
-  --gold: #FFD700;
-  --cream: #FFFBF0;
-  --app-bg: #0F1117;
-  --app-surface: #161B27;
-  --app-border: #1E2535;
-  --app-accent: #00D084;
+  /* Default: Dark Theme */
+  --bg-primary: #0F1117;
+  --bg-secondary: #161B27;
+  --bg-tertiary: #1E2535;
+  --border-main: #1E2535;
+  --border-muted: #2A3548;
+  --text-main: #F1F5F9;
+  --text-muted: #94A3B8;
+  --text-dim: #475569;
+  --accent: #00D084;
+  --accent-muted: rgba(0, 208, 132, 0.1);
 }
+
+.light {
+  --bg-primary: #F8FAFC;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #F1F5F9;
+  --border-main: #E2E8F0;
+  --border-muted: #CBD5E1;
+  --text-main: #0F172A;
+  --text-muted: #475569;
+  --text-dim: #94A3B8;
+  --accent: #006B3C;
+  --accent-muted: rgba(0, 107, 60, 0.1);
+}
+
 body {
   margin: 0;
   font-family: 'Sora', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--cream);
-  color: #1A1A1A;
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 .app-font {
   font-family: 'Inter', sans-serif;

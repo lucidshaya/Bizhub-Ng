@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Bell,
   TrendingUp,
@@ -8,47 +8,68 @@ import {
   FileText,
   ArrowUpRight,
   ArrowDownRight,
-  Zap } from
-'lucide-react';
+  Zap,
+  Loader2
+} from 'lucide-react';
 import { motion } from 'framer-motion';
 import { MobileTab } from '../../pages/MobilePreview';
+import { dashboardApi } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+
 interface MobileDashboardProps {
   onNavigate: (tab: MobileTab) => void;
 }
-const recentTx = [
-{
-  desc: 'Payroll — Feb 2025',
-  amount: '-₦1,840,000',
-  type: 'debit',
-  time: 'Today'
-},
-{
-  desc: 'Client Payment',
-  amount: '+₦750,000',
-  type: 'credit',
-  time: 'Today'
-},
-{
-  desc: 'Withdrawal',
-  amount: '-₦200,000',
-  type: 'debit',
-  time: 'Yesterday'
-},
-{
-  desc: 'POS Sales',
-  amount: '+₦430,000',
-  type: 'credit',
-  time: 'Feb 17'
-}];
+
+const formatNaira = (v: number) => `₦${v.toLocaleString('en-NG')}`;
 
 export function MobileDashboard({ onNavigate }: MobileDashboardProps) {
+  const { user } = useAuth();
+  const [summary, setSummary] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  const loadDashboard = async () => {
+    setIsLoading(true);
+    try {
+      const res = await dashboardApi.getSummary();
+      setSummary(res.data);
+    } catch (err: any) {
+      setSummary({
+        walletBalance: 0,
+        totalRevenue: 0,
+        totalExpenses: 0,
+        staffCount: 0,
+        activeStaff: 0,
+        camerasOnline: 0,
+        totalCameras: 0,
+        unreadMessages: 0,
+        recentTransactions: [],
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center py-20">
+        <Loader2 size={32} className="text-[#00D084] animate-spin" />
+      </div>
+    );
+  }
+
+  const recentTx = summary?.recentTransactions || [];
+
   return (
     <div className="pb-4">
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-4 pb-3">
         <div>
           <p className="text-[#94A3B8] text-xs">Good morning 👋</p>
-          <p className="text-[#F1F5F9] font-bold text-base">Emeka Okafor</p>
+          <p className="text-[#F1F5F9] font-bold text-base">{user?.fullName?.split(' ')[0] || 'Boss'}</p>
         </div>
         <div className="relative">
           <button className="w-9 h-9 bg-[#161B27] rounded-xl flex items-center justify-center border border-[#1E2535]">
@@ -68,10 +89,10 @@ export function MobileDashboard({ onNavigate }: MobileDashboardProps) {
         <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/5 -translate-y-8 translate-x-8" />
         <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full bg-black/10 translate-y-8 -translate-x-8" />
         <p className="text-green-100 text-xs font-medium mb-1 relative z-10">
-          Total Balance
+          Wallet Balance
         </p>
         <p className="text-white text-3xl font-bold mb-4 relative z-10">
-          ₦4,250,000
+          {formatNaira(summary?.walletBalance || 0)}
         </p>
         <div className="flex gap-3 relative z-10">
           <button className="flex-1 bg-white/20 hover:bg-white/30 text-white text-xs font-semibold py-2 rounded-xl transition-colors">
@@ -86,31 +107,31 @@ export function MobileDashboard({ onNavigate }: MobileDashboardProps) {
       {/* Quick Stats */}
       <div className="grid grid-cols-2 gap-3 mx-4 mb-4">
         {[
-        {
-          label: 'Staff',
-          value: '24',
-          color: '#3B82F6',
-          icon: Users
-        },
-        {
-          label: 'Payroll',
-          value: '₦1.84M',
-          color: '#F59E0B',
-          icon: TrendingUp
-        },
-        {
-          label: 'Cameras',
-          value: '6 Live',
-          color: '#00D084',
-          icon: Camera
-        },
-        {
-          label: 'Messages',
-          value: '12 New',
-          color: '#8B5CF6',
-          icon: MessageSquare
-        }].
-        map((s) => {
+          {
+            label: 'Staff',
+            value: `${summary?.activeStaff || 0}/${summary?.staffCount || 0}`,
+            color: '#3B82F6',
+            icon: Users
+          },
+          {
+            label: 'Expenses',
+            value: formatNaira(summary?.totalExpenses || 0),
+            color: '#EF4444',
+            icon: TrendingUp
+          },
+          {
+            label: 'Cameras',
+            value: `${summary?.camerasOnline || 0} Live`,
+            color: '#00D084',
+            icon: Camera
+          },
+          {
+            label: 'Messages',
+            value: `${summary?.unreadMessages || 0} New`,
+            color: '#8B5CF6',
+            icon: MessageSquare
+          }
+        ].map((s) => {
           const Icon = s.icon;
           return (
             <div
@@ -131,11 +152,11 @@ export function MobileDashboard({ onNavigate }: MobileDashboardProps) {
 
               </div>
               <div>
-                <p className="text-[#F1F5F9] font-bold text-sm">{s.value}</p>
+                <p className="text-[#F1F5F9] font-bold text-sm truncate">{s.value}</p>
                 <p className="text-[#475569] text-xs">{s.label}</p>
               </div>
-            </div>);
-
+            </div>
+          );
         })}
       </div>
 
@@ -146,31 +167,31 @@ export function MobileDashboard({ onNavigate }: MobileDashboardProps) {
         </p>
         <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1">
           {[
-          {
-            label: 'Pay Workers',
-            color: '#00D084',
-            icon: Users,
-            tab: 'staff' as MobileTab
-          },
-          {
-            label: 'CCTV',
-            color: '#3B82F6',
-            icon: Camera,
-            tab: 'cctv' as MobileTab
-          },
-          {
-            label: 'Chat',
-            color: '#8B5CF6',
-            icon: MessageSquare,
-            tab: 'more' as MobileTab
-          },
-          {
-            label: 'Reports',
-            color: '#F59E0B',
-            icon: FileText,
-            tab: 'more' as MobileTab
-          }].
-          map((s) => {
+            {
+              label: 'Pay Workers',
+              color: '#00D084',
+              icon: Users,
+              tab: 'staff' as MobileTab
+            },
+            {
+              label: 'CCTV',
+              color: '#3B82F6',
+              icon: Camera,
+              tab: 'cctv' as MobileTab
+            },
+            {
+              label: 'Chat',
+              color: '#8B5CF6',
+              icon: MessageSquare,
+              tab: 'more' as MobileTab
+            },
+            {
+              label: 'Reports',
+              color: '#F59E0B',
+              icon: FileText,
+              tab: 'more' as MobileTab
+            }
+          ].map((s) => {
             const Icon = s.icon;
             return (
               <button
@@ -195,8 +216,8 @@ export function MobileDashboard({ onNavigate }: MobileDashboardProps) {
                 <span className="text-[#94A3B8] text-xs whitespace-nowrap">
                   {s.label}
                 </span>
-              </button>);
-
+              </button>
+            );
           })}
         </div>
       </div>
@@ -210,40 +231,45 @@ export function MobileDashboard({ onNavigate }: MobileDashboardProps) {
           <button
             onClick={() => onNavigate('transactions')}
             className="text-[#00D084] text-xs">
-
             View All
           </button>
         </div>
-        <div className="space-y-2">
-          {recentTx.map((tx, i) =>
-          <div
-            key={i}
-            className="flex items-center gap-3 bg-[#161B27] border border-[#1E2535] rounded-xl p-3">
 
+        {recentTx.length === 0 ? (
+          <div className="text-center py-6 border border-dashed border-[#2A3548] rounded-xl bg-[#0F1117]">
+            <p className="text-[#94A3B8] text-sm">No transactions yet</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {recentTx.slice(0, 4).map((tx: any, i: number) => (
               <div
-              className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${tx.type === 'credit' ? 'bg-[#00D084]/10' : 'bg-[#EF4444]/10'}`}>
+                key={i}
+                className="flex items-center gap-3 bg-[#161B27] border border-[#1E2535] rounded-xl p-3">
 
-                {tx.type === 'credit' ?
-              <ArrowUpRight size={14} className="text-[#00D084]" /> :
-
-              <ArrowDownRight size={14} className="text-[#EF4444]" />
-              }
+                <div
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${tx.type === 'CREDIT' ? 'bg-[#00D084]/10' : 'bg-[#EF4444]/10'}`}>
+                  {tx.type === 'CREDIT' ?
+                    <ArrowDownRight size={14} className="text-[#00D084]" /> :
+                    <ArrowUpRight size={14} className="text-[#EF4444]" />
+                  }
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[#F1F5F9] text-xs font-medium truncate">
+                    {tx.description}
+                  </p>
+                  <p className="text-[#475569] text-xs">
+                    {new Date(tx.date).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}
+                  </p>
+                </div>
+                <span
+                  className={`text-xs font-bold ${tx.type === 'CREDIT' ? 'text-[#00D084]' : 'text-[#EF4444]'}`}>
+                  {tx.type === 'CREDIT' ? '+' : '-'}{formatNaira(tx.amount)}
+                </span>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[#F1F5F9] text-xs font-medium truncate">
-                  {tx.desc}
-                </p>
-                <p className="text-[#475569] text-xs">{tx.time}</p>
-              </div>
-              <span
-              className={`text-xs font-bold ${tx.type === 'credit' ? 'text-[#00D084]' : 'text-[#EF4444]'}`}>
-
-                {tx.amount}
-              </span>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
-    </div>);
-
+    </div>
+  );
 }

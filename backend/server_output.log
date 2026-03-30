@@ -1,0 +1,291 @@
+
+> backend@0.0.1 start
+> nest start
+
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +17ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPrismaModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPassportModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +30ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSupabaseModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mWaitlistModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSupportModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mJwtModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mWebhooksModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mEmailModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAdminModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTransactionsModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mCamerasModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPaymentsModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSettingsModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mChatModule dependencies initialized[39m[38;5;3m +0ms[39m
+Redis Connection Error:  AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1134:18)
+    at afterConnectMultiple (node:net:1715:7) {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:6379
+        at createConnectionError (node:net:1678:14)
+        at afterConnectMultiple (node:net:1708:16) {
+      errno: -61,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 6379
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:6379
+        at createConnectionError (node:net:1678:14)
+        at afterConnectMultiple (node:net:1708:16) {
+      errno: -61,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 6379
+    }
+  ]
+}
+Redis Connection Error: falling back to in-memory cache.
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mCacheModule dependencies initialized[39m[38;5;3m +3ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mStaffModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDashboardModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mChatGateway subscribed to the "join_room" message[39m[38;5;3m +24ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mChatGateway subscribed to the "leave_room" message[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mChatGateway subscribed to the "send_message" message[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mChatGateway subscribed to the "typing" message[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/api/auth}:[39m[38;5;3m +1ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/signup, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/login, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/google, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/forgot-password, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/invite-worker, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/invite-info, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/accept-invite, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/profile, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/set-pin, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/verify-pin, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/request-pin-reset, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/reset-pin, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mStaffController {/api/staff}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/staff, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/staff/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/staff, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/staff/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/staff/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/staff/pay, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/staff/pay-all, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/staff/payroll/history, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mTransactionsController {/api/transactions}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/transactions, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/transactions/summary, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/transactions/export, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/transactions/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/transactions, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/transactions/sync, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/transactions/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mDashboardController {/api/dashboard}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/dashboard/summary, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/dashboard/activity, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mChatController {/api/chat}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat/rooms, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat/users, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat/rooms/:roomId/messages, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat/rooms, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat/messages, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mCamerasController {/api/cameras}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/cameras, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/cameras/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/cameras/:id/stream, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/cameras, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/cameras/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/cameras/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSettingsController {/api/settings}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/settings/profile, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/settings/profile, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/settings/business, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/settings/payments, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/settings/payments/connect, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/settings/wallet/generate, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/settings/wallet/upgrade-plan, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/settings/paystack/upgrade-plan, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPaymentsController {/api/payments}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/paystack/initialize, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/paystack/verify, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/paystack/verify-funding, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/paystack/webhook, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/flutterwave/initialize, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/flutterwave/verify, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/moniepoint/virtual-account, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/opay/transfer, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/banks, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAdminController {/api/admin}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/stats, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/users, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/activity, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/support, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/superadmin/data, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mEmailController {/api/email}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/email/bulk, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mWebhooksController {/api/webhooks}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/webhooks/pos, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/webhooks/opay, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/webhooks/monnify, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mWaitlistController {/api/waitlist}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/waitlist, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSupportController {/api/support}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/support/tickets, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/support/tickets, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/support/tickets/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/support/tickets/:id/responses, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:18 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/support/tickets/:id/status, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 24922  - [39m03/30/2026, 2:36:19 PM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +56ms[39m
+🚀 Server is running on: http://localhost:3333/api
+Client connected: htQE7pAwsjQ96YptAAAB, User: 2e5f86ae-8724-402f-9479-23135f8b9104
+User 2e5f86ae-8724-402f-9479-23135f8b9104 joined room 9f6b5eec-0a3a-4a76-9907-41296cbb44c0
+User 2e5f86ae-8724-402f-9479-23135f8b9104 joined room 4c22cfa3-5a4f-4fbb-b185-df003c6c0558
+User 2e5f86ae-8724-402f-9479-23135f8b9104 joined room 9f6b5eec-0a3a-4a76-9907-41296cbb44c0
+User 2e5f86ae-8724-402f-9479-23135f8b9104 joined room 4c22cfa3-5a4f-4fbb-b185-df003c6c0558
+User 2e5f86ae-8724-402f-9479-23135f8b9104 joined room 9f6b5eec-0a3a-4a76-9907-41296cbb44c0
+User 2e5f86ae-8724-402f-9479-23135f8b9104 joined room 4c22cfa3-5a4f-4fbb-b185-df003c6c0558
+User 2e5f86ae-8724-402f-9479-23135f8b9104 joined room 9f6b5eec-0a3a-4a76-9907-41296cbb44c0
+User 2e5f86ae-8724-402f-9479-23135f8b9104 joined room 4c22cfa3-5a4f-4fbb-b185-df003c6c0558
+User 2e5f86ae-8724-402f-9479-23135f8b9104 joined room 9f6b5eec-0a3a-4a76-9907-41296cbb44c0
+User 2e5f86ae-8724-402f-9479-23135f8b9104 joined room 4c22cfa3-5a4f-4fbb-b185-df003c6c0558
+✅ Email sent to ivorilucid@gmail.com
+User 2e5f86ae-8724-402f-9479-23135f8b9104 joined room 9f6b5eec-0a3a-4a76-9907-41296cbb44c0
+User 2e5f86ae-8724-402f-9479-23135f8b9104 joined room 4c22cfa3-5a4f-4fbb-b185-df003c6c0558
+User 2e5f86ae-8724-402f-9479-23135f8b9104 joined room 9f6b5eec-0a3a-4a76-9907-41296cbb44c0
+User 2e5f86ae-8724-402f-9479-23135f8b9104 joined room 4c22cfa3-5a4f-4fbb-b185-df003c6c0558
+Client disconnected: htQE7pAwsjQ96YptAAAB
+Client connected: eFmAX_bd96sFWXcWAAAD, User: 2e5f86ae-8724-402f-9479-23135f8b9104
+[31m[Nest] 24922  - [39m03/30/2026, 2:56:54 PM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39mPrismaClientKnownRequestError: 
+Invalid `this.prisma.user.findUnique()` invocation in
+/Users/mac/Downloads/BizhubNg Official/backend/src/chat/chat.controller.ts:24:45
+
+  21 ) { }
+  22 
+  23 private async getBusinessId(userId: string): Promise<string> {
+→ 24     const user = await this.prisma.user.findUnique(
+Can't reach database server at aws-1-eu-central-1.pooler.supabase.com
+    at zr.handleRequestError [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client[24m/src/runtime/RequestHandler.ts:237:13[90m)[39m
+    at zr.handleAndLogRequestError [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client[24m/src/runtime/RequestHandler.ts:183:12[90m)[39m
+    at zr.request [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client[24m/src/runtime/RequestHandler.ts:152:12[90m)[39m
+[90m    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+    at async a [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client[24m/src/runtime/getPrismaClient.ts:808:24[90m)[39m
+    at async ChatController.getBusinessId [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39msrc/chat/chat.controller.ts:24:22[90m)[39m
+    at async ChatController.getRooms [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39msrc/chat/chat.controller.ts:31:28[90m)[39m
+    at async [90m/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@nestjs/core[24m/router/router-execution-context.js:46:28
+    at async [90m/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@nestjs/core[24m/router/router-proxy.js:9:17 {
+  code: [32m'P1001'[39m,
+  meta: {
+    modelName: [32m'User'[39m,
+    driverAdapterError: DriverAdapterError: DatabaseNotReachable
+        at PrismaPgAdapter.onError [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/adapter-pg[24m/dist/index.js:687:11[90m)[39m
+        at PrismaPgAdapter.performIO [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/adapter-pg[24m/dist/index.js:682:12[90m)[39m
+    [90m    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+        at async PrismaPgAdapter.queryRaw [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/adapter-pg[24m/dist/index.js:602:30[90m)[39m
+        at async e.interpretNode [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client-engine-runtime[24m/src/interpreter/query-interpreter.ts:182:26[90m)[39m
+        at async e.interpretNode [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client-engine-runtime[24m/src/interpreter/query-interpreter.ts:209:41[90m)[39m
+        at async e.interpretNode [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client-engine-runtime[24m/src/interpreter/query-interpreter.ts:268:41[90m)[39m
+        at async e.run [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client-engine-runtime[24m/src/interpreter/query-interpreter.ts:93:23[90m)[39m
+        at async e.execute [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client[24m/src/runtime/core/engines/client/LocalExecutor.ts:81:12[90m)[39m
+        at async qt.request [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client[24m/src/runtime/core/engines/client/ClientEngine.ts:492:22[90m)[39m {
+      cause: {
+        kind: [32m'DatabaseNotReachable'[39m,
+        host: [32m'aws-1-eu-central-1.pooler.supabase.com'[39m,
+        port: [90mundefined[39m
+      }
+    }
+  },
+  clientVersion: [32m'7.4.1'[39m
+}
+[31m[Nest] 24922  - [39m03/30/2026, 2:56:54 PM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39mPrismaClientKnownRequestError: 
+Invalid `this.prisma.user.findUnique()` invocation in
+/Users/mac/Downloads/BizhubNg Official/backend/src/chat/chat.controller.ts:24:45
+
+  21 ) { }
+  22 
+  23 private async getBusinessId(userId: string): Promise<string> {
+→ 24     const user = await this.prisma.user.findUnique(
+Can't reach database server at aws-1-eu-central-1.pooler.supabase.com
+    at zr.handleRequestError [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client[24m/src/runtime/RequestHandler.ts:237:13[90m)[39m
+    at zr.handleAndLogRequestError [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client[24m/src/runtime/RequestHandler.ts:183:12[90m)[39m
+    at zr.request [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client[24m/src/runtime/RequestHandler.ts:152:12[90m)[39m
+[90m    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+    at async a [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client[24m/src/runtime/getPrismaClient.ts:808:24[90m)[39m
+    at async ChatController.getBusinessId [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39msrc/chat/chat.controller.ts:24:22[90m)[39m
+    at async ChatController.getUsers [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39msrc/chat/chat.controller.ts:37:28[90m)[39m
+    at async [90m/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@nestjs/core[24m/router/router-execution-context.js:46:28
+    at async [90m/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@nestjs/core[24m/router/router-proxy.js:9:17 {
+  code: [32m'P1001'[39m,
+  meta: {
+    modelName: [32m'User'[39m,
+    driverAdapterError: DriverAdapterError: DatabaseNotReachable
+        at PrismaPgAdapter.onError [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/adapter-pg[24m/dist/index.js:687:11[90m)[39m
+        at PrismaPgAdapter.performIO [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/adapter-pg[24m/dist/index.js:682:12[90m)[39m
+    [90m    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+        at async PrismaPgAdapter.queryRaw [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/adapter-pg[24m/dist/index.js:602:30[90m)[39m
+        at async e.interpretNode [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client-engine-runtime[24m/src/interpreter/query-interpreter.ts:182:26[90m)[39m
+        at async e.interpretNode [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client-engine-runtime[24m/src/interpreter/query-interpreter.ts:209:41[90m)[39m
+        at async e.interpretNode [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client-engine-runtime[24m/src/interpreter/query-interpreter.ts:268:41[90m)[39m
+        at async e.run [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client-engine-runtime[24m/src/interpreter/query-interpreter.ts:93:23[90m)[39m
+        at async e.execute [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client[24m/src/runtime/core/engines/client/LocalExecutor.ts:81:12[90m)[39m
+        at async qt.request [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client[24m/src/runtime/core/engines/client/ClientEngine.ts:492:22[90m)[39m {
+      cause: {
+        kind: [32m'DatabaseNotReachable'[39m,
+        host: [32m'aws-1-eu-central-1.pooler.supabase.com'[39m,
+        port: [90mundefined[39m
+      }
+    }
+  },
+  clientVersion: [32m'7.4.1'[39m
+}
+[31m[Nest] 24922  - [39m03/30/2026, 2:56:54 PM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39mPrismaClientKnownRequestError: 
+Invalid `this.prisma.user.findUnique()` invocation in
+/Users/mac/Downloads/BizhubNg Official/backend/src/staff/staff.controller.ts:26:45
+
+  23 ) { }
+  24 
+  25 private async getBusinessId(userId: string): Promise<string> {
+→ 26     const user = await this.prisma.user.findUnique(
+Can't reach database server at aws-1-eu-central-1.pooler.supabase.com
+    at zr.handleRequestError [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client[24m/src/runtime/RequestHandler.ts:237:13[90m)[39m
+    at zr.handleAndLogRequestError [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client[24m/src/runtime/RequestHandler.ts:183:12[90m)[39m
+    at zr.request [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client[24m/src/runtime/RequestHandler.ts:152:12[90m)[39m
+[90m    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+    at async a [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client[24m/src/runtime/getPrismaClient.ts:808:24[90m)[39m
+    at async StaffController.getBusinessId [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39msrc/staff/staff.controller.ts:26:22[90m)[39m
+    at async StaffController.findAll [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39msrc/staff/staff.controller.ts:33:28[90m)[39m
+    at async [90m/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@nestjs/core[24m/router/router-execution-context.js:46:28
+    at async [90m/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@nestjs/core[24m/router/router-proxy.js:9:17 {
+  code: [32m'P1001'[39m,
+  meta: {
+    modelName: [32m'User'[39m,
+    driverAdapterError: DriverAdapterError: DatabaseNotReachable
+        at PrismaPgAdapter.onError [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/adapter-pg[24m/dist/index.js:687:11[90m)[39m
+        at PrismaPgAdapter.performIO [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/adapter-pg[24m/dist/index.js:682:12[90m)[39m
+    [90m    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+        at async PrismaPgAdapter.queryRaw [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/adapter-pg[24m/dist/index.js:602:30[90m)[39m
+        at async e.interpretNode [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client-engine-runtime[24m/src/interpreter/query-interpreter.ts:182:26[90m)[39m
+        at async e.interpretNode [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client-engine-runtime[24m/src/interpreter/query-interpreter.ts:209:41[90m)[39m
+        at async e.interpretNode [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client-engine-runtime[24m/src/interpreter/query-interpreter.ts:268:41[90m)[39m
+        at async e.run [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client-engine-runtime[24m/src/interpreter/query-interpreter.ts:93:23[90m)[39m
+        at async e.execute [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client[24m/src/runtime/core/engines/client/LocalExecutor.ts:81:12[90m)[39m
+        at async qt.request [90m(/Users/mac/Downloads/BizhubNg Official/backend/[39mnode_modules/[4m@prisma/client[24m/src/runtime/core/engines/client/ClientEngine.ts:492:22[90m)[39m {
+      cause: {
+        kind: [32m'DatabaseNotReachable'[39m,
+        host: [32m'aws-1-eu-central-1.pooler.supabase.com'[39m,
+        port: [90mundefined[39m
+      }
+    }
+  },
+  clientVersion: [32m'7.4.1'[39m
+}
+User 2e5f86ae-8724-402f-9479-23135f8b9104 joined room 4c22cfa3-5a4f-4fbb-b185-df003c6c0558
+User 2e5f86ae-8724-402f-9479-23135f8b9104 joined room 4c22cfa3-5a4f-4fbb-b185-df003c6c0558
+User 2e5f86ae-8724-402f-9479-23135f8b9104 joined room 9f6b5eec-0a3a-4a76-9907-41296cbb44c0
+User 2e5f86ae-8724-402f-9479-23135f8b9104 joined room 4c22cfa3-5a4f-4fbb-b185-df003c6c0558
+Client disconnected: eFmAX_bd96sFWXcWAAAD
+Client connected: __dqI9x4DIECwV4kAAAF, User: 2e5f86ae-8724-402f-9479-23135f8b9104

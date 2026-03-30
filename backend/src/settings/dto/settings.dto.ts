@@ -51,6 +51,14 @@ export class UpdateBusinessDto {
     @IsArray()
     @IsString({ each: true })
     departments?: string[];
+
+    @IsOptional()
+    @IsString()
+    morningShift?: string;
+
+    @IsOptional()
+    @IsString()
+    nightShift?: string;
 }
 
 export class ConnectPaymentDto {

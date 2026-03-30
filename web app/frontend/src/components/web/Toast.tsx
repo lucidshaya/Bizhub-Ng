@@ -41,7 +41,7 @@ const styles: Record<ToastType, string> = {
     info: 'bg-[#3B82F6]/15 border-[#3B82F6]/30 text-[#3B82F6]',
 };
 
-function ToastItem({ toast: t, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
+const ToastItem = React.forwardRef<HTMLDivElement, { toast: Toast; onDismiss: (id: string) => void }>(({ toast: t, onDismiss }, ref) => {
     useEffect(() => {
         const timer = setTimeout(() => onDismiss(t.id), t.duration || 4000);
         return () => clearTimeout(timer);
@@ -49,6 +49,7 @@ function ToastItem({ toast: t, onDismiss }: { toast: Toast; onDismiss: (id: stri
 
     return (
         <motion.div
+            ref={ref}
             layout
             initial={{ opacity: 0, x: 80, scale: 0.95 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
@@ -63,7 +64,9 @@ function ToastItem({ toast: t, onDismiss }: { toast: Toast; onDismiss: (id: stri
             </button>
         </motion.div>
     );
-}
+});
+
+ToastItem.displayName = 'ToastItem';
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
     const [toasts, setToasts] = useState<Toast[]>([]);

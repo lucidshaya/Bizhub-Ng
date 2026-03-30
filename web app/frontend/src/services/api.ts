@@ -58,6 +58,8 @@ export const authApi = {
 
     setPin: (pin: string) => api.post('/auth/set-pin', { pin }),
     verifyPin: (pin: string) => api.post('/auth/verify-pin', { pin }),
+    requestPinReset: () => api.post('/auth/request-pin-reset'),
+    resetPin: (token: string, pin: string) => api.post('/auth/reset-pin', { token, pin }),
 };
 
 // ─── DASHBOARD ────────────────────────────────────────
@@ -65,6 +67,7 @@ export const authApi = {
 export const dashboardApi = {
     getSummary: () => api.get('/dashboard/summary'),
     getActivity: () => api.get('/dashboard/activity'),
+    verifyFunding: (reference: string) => api.post('/payments/paystack/verify-funding', { reference }),
 };
 
 // ─── STAFF ────────────────────────────────────────────
@@ -99,6 +102,7 @@ export const transactionsApi = {
     getExport: (params?: any) => api.get('/transactions/export', { params }),
     getOne: (id: string) => api.get(`/transactions/${id}`),
     create: (data: any) => api.post('/transactions', data),
+    sync: () => api.post('/transactions/sync').then(res => res.data),
     remove: (id: string) => api.delete(`/transactions/${id}`),
 };
 
@@ -138,6 +142,9 @@ export const settingsApi = {
         secretKey?: string;
         connected: boolean;
     }) => api.post('/settings/payments/connect', data),
+    generateVirtualAccount: () => api.post('/settings/wallet/generate'),
+    upgradePlan: (plan: string) => api.post('/settings/wallet/upgrade-plan', { plan }),
+    upgradePlanPaystack: (plan: string) => api.post('/settings/paystack/upgrade-plan', { plan }),
 };
 
 // ─── EMAIL ────────────────────────────────────────────

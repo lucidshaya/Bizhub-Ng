@@ -255,8 +255,37 @@ class _ChatScreenState extends State<ChatScreen> {
                             ],
                           ),
                           child: ListTile(
-                            onTap: () {
-                              // Open or prepare a DM
+                            onTap: () async {
+                              setState(() => _loadingRooms = true);
+                              try {
+                                final response =
+                                    await ApiService.createChatRoom(
+                                      name: name,
+                                      type: 'DIRECT',
+                                      memberIds: [u['id']],
+                                    );
+                                if (mounted) {
+                                  setState(() => _loadingRooms = false);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => _ChatRoomScreen(
+                                        roomId: response['id'],
+                                        roomName: name,
+                                      ),
+                                    ),
+                                  ).then((_) => _loadRooms());
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  setState(() => _loadingRooms = false);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Could not start chat: $e'),
+                                    ),
+                                  );
+                                }
+                              }
                             },
                             leading: CircleAvatar(
                               radius: 20,
@@ -427,11 +456,15 @@ class _ChatRoomScreenState extends State<_ChatRoomScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.phone_outlined, size: 20),
-            onPressed: () {},
+            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Calling coming soon!')),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.videocam_outlined, size: 20),
-            onPressed: () {},
+            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Video call coming soon!')),
+            ),
           ),
         ],
       ),
@@ -536,7 +569,11 @@ class _ChatRoomScreenState extends State<_ChatRoomScreen> {
                       size: 20,
                       color: AppTheme.textMuted,
                     ),
-                    onPressed: () {},
+                    onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('File attachment coming soon!'),
+                      ),
+                    ),
                   ),
                   Expanded(
                     child: TextField(

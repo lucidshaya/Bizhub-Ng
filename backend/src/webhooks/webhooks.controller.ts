@@ -29,4 +29,61 @@ export class WebhooksController {
             return { success: false, message: error.message };
         }
     }
+
+    @Post('opay')
+    @HttpCode(HttpStatus.OK)
+    async handleOpayWebhook(
+        @Body() body: any,
+        @Req() req: Request,
+        @Headers() headers: Record<string, string>
+    ) {
+        this.logger.log(`Received OPay Webhook: ${JSON.stringify(body)}`);
+
+        try {
+            await this.webhooksService.processOpayTransaction(body, headers);
+            return { success: true, message: 'Webhook received' };
+        } catch (error) {
+            this.logger.error(`Error processing OPay webhook: ${error.message}`);
+            return { success: false, message: error.message };
+        }
+    }
+
+    @Post('monnify')
+    @HttpCode(HttpStatus.OK)
+    async handleMonnifyWebhook(
+        @Body() body: any,
+        @Req() req: Request,
+        @Headers() headers: Record<string, string>
+    ) {
+        this.logger.log(`Received Monnify Webhook: ${JSON.stringify(body)}`);
+
+        try {
+            await this.webhooksService.processMonnifyTransaction(body, headers);
+            return { success: true, message: 'Webhook received' };
+        } catch (error) {
+            this.logger.error(`Error processing Monnify webhook: ${error.message}`);
+            return { success: false, message: error.message };
+        }
+    }
+
+    @Post('sms')
+    @HttpCode(HttpStatus.OK)
+    async handleSmsWebhook(
+        @Body() body: any,
+        @Req() req: Request
+    ) {
+        this.logger.log(`Received SMS Webhook: ${JSON.stringify(body)}`);
+        
+        try {
+            const parsed = await this.webhooksService.processSmsAlert(body);
+            return { 
+                success: true, 
+                message: parsed ? 'SMS Parsed correctly and Logged' : 'SMS Webhook received but discarded (Not a valid credit alert)',
+                data: parsed
+            };
+        } catch (error) {
+            this.logger.error(`Error processing SMS webhook: ${error.message}`);
+            return { success: false, message: error.message };
+        }
+    }
 }

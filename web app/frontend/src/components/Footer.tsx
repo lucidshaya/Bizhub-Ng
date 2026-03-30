@@ -7,7 +7,7 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
           <div className="col-span-1 md:col-span-1">
             <a
-              href="#"
+              href="/"
               className="text-2xl font-extrabold tracking-tight mb-4 block">
 
               <span className="text-gold">Biz</span>
@@ -49,12 +49,12 @@ export function Footer() {
             <h4 className="font-bold text-gray-900 mb-4">Product</h4>
             <ul className="space-y-2 text-gray-600">
               <li>
-                <a href="#" className="hover:text-primary">
+                <a href="#features" className="hover:text-primary">
                   Features
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-primary">
+                <a href="#pricing" className="hover:text-primary">
                   Pricing
                 </a>
               </li>
@@ -75,7 +75,7 @@ export function Footer() {
             <h4 className="font-bold text-gray-900 mb-4">Company</h4>
             <ul className="space-y-2 text-gray-600">
               <li>
-                <a href="#" className="hover:text-primary">
+                <a href="#about" className="hover:text-primary">
                   About Us
                 </a>
               </li>
@@ -85,7 +85,7 @@ export function Footer() {
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-primary">
+                <a href="#blog" className="hover:text-primary">
                   Blog
                 </a>
               </li>

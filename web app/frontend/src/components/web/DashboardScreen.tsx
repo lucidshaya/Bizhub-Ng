@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -17,13 +17,15 @@ import {
   AlertTriangle,
   Info,
   Loader2,
+  RefreshCw,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import type { WebScreen } from '../../pages/WebApp';
 import { dashboardApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
-const formatNaira = (v: number) => `₦${v.toLocaleString('en-NG')}`;
+const formatNaira = (v: number) => `₦${v?.toLocaleString('en-NG') || '0'}`;
 
 interface DashboardScreenProps {
   onNavigate: (screen: WebScreen) => void;
@@ -31,59 +33,41 @@ interface DashboardScreenProps {
 
 export function DashboardScreen({ onNavigate }: DashboardScreenProps) {
   const { user } = useAuth();
-  const [summary, setSummary] = useState<any>(null);
-  const [activity, setActivity] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
 
-  useEffect(() => {
-    loadDashboard();
-  }, []);
+  const { data: summary, isLoading: sumLoading, error: sumError, refetch: refetchSum } = useQuery({
+    queryKey: ['dashboard_summary'],
+    queryFn: () => dashboardApi.getSummary().then(res => res.data),
+    staleTime: 1000 * 60, // 1 minute
+  });
 
-  const loadDashboard = async () => {
-    setIsLoading(true);
-    try {
-      const [sumRes, actRes] = await Promise.all([
-        dashboardApi.getSummary(),
-        dashboardApi.getActivity(),
-      ]);
-      setSummary(sumRes.data);
-      setActivity(actRes.data);
-    } catch (err: any) {
-      setError('Failed to load dashboard data');
-      // Fallback to sample data if API is not connected
-      setSummary({
-        balance: 0,
-        totalRevenue: 0,
-        totalExpenses: 0,
-        staffCount: 0,
-        activeStaff: 0,
-        camerasOnline: 0,
-        totalCameras: 0,
-        unreadMessages: 0,
-        recentTransactions: [],
-        staffList: [],
-        recentMessages: [],
-      });
-      setActivity([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { data: activity, isLoading: actLoading, error: actError } = useQuery({
+    queryKey: ['dashboard_activity'],
+    queryFn: () => dashboardApi.getActivity().then(res => res.data),
+    staleTime: 1000 * 60, // 1 minute
+  });
 
-  if (isLoading) {
+  const isLoading = sumLoading || actLoading;
+  const error = sumError || actError;
+
+  if (isLoading && !summary) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <Loader2 size={32} className="text-[#00D084] animate-spin" />
+      <div className="h-full flex flex-col items-center justify-center gap-4">
+        <div className="relative">
+          <Loader2 size={40} className="text-[var(--accent)] animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-2 h-2 bg-[var(--accent)] rounded-full animate-pulse" />
+          </div>
+        </div>
+        <p className="text-[var(--text-dim)] text-sm animate-pulse">Synchronizing your dashboard...</p>
       </div>
     );
   }
 
   const stats = [
     {
-      label: 'Total Balance',
-      value: formatNaira(summary?.balance || 0),
-      change: '+12.5%',
+      label: 'Wallet Balance',
+      value: formatNaira(summary?.walletBalance || 0),
+      change: 'Available',
       up: true,
       icon: Zap,
       color: '#00D084',
@@ -115,32 +99,56 @@ export function DashboardScreen({ onNavigate }: DashboardScreenProps) {
   ];
 
   const quickActions = [
-    { label: 'Staff', icon: Users, color: '#3B82F6', screen: 'staff' as WebScreen },
-    { label: 'Transactions', icon: CreditCard, color: '#00D084', screen: 'transactions' as WebScreen },
-    { label: 'CCTV', icon: Camera, color: '#F59E0B', screen: 'cctv' as WebScreen },
-    { label: 'Messages', icon: MessageSquare, color: '#8B5CF6', screen: 'comms' as WebScreen },
+    { label: 'Staff Management', icon: Users, color: '#3B82F6', screen: 'staff' as WebScreen },
+    { label: 'Financial Records', icon: CreditCard, color: '#00D084', screen: 'transactions' as WebScreen },
+    { label: 'Surveillance', icon: Camera, color: '#F59E0B', screen: 'cctv' as WebScreen },
+    { label: 'Business Chat', icon: MessageSquare, color: '#8B5CF6', screen: 'comms' as WebScreen },
   ];
 
   const recentTxns = summary?.recentTransactions || [];
   const teamMembers = summary?.staffList || [];
   const recentMsgs = summary?.recentMessages || [];
+  const activityLog = activity || [];
 
   return (
     <div className="p-6 space-y-6">
       {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-[#00D084]/10 to-[#3B82F6]/10 border border-[#1E2535] rounded-2xl p-6">
-        <h1 className="text-[#F1F5F9] text-2xl font-bold mb-1">
-          Welcome back, {user?.fullName?.split(' ')[0] || 'Boss'} 👋
-        </h1>
-        <p className="text-[#94A3B8] text-sm">
-          {user?.businessName ? `${user.businessName} — ` : ''}Here's your business overview for today
-        </p>
+      <div className="relative overflow-hidden bg-gradient-to-br from-[var(--bg-secondary)] to-[var(--bg-tertiary)] border border-[var(--border-main)] rounded-2xl p-6 shadow-xl">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--accent)]/5 rounded-full -mr-32 -mt-32 blur-3xl" />
+        <div className="relative z-10">
+          <h1 className="text-[var(--text-main)] text-2xl font-bold mb-1 flex items-center gap-2">
+            Welcome back, {user?.fullName?.split(' ')[0] || 'Boss'} 👋
+          </h1>
+          <p className="text-[var(--text-dim)] text-sm">
+            {user?.businessName ? `${user.businessName} — ` : ''}Your business is performing well today.
+          </p>
+
+          {/* Virtual Account Info */}
+          {(summary?.virtualAccountNumber) && (
+            <div className="mt-6 flex items-center gap-4 bg-[var(--bg-primary)]/50 backdrop-blur-md border border-[var(--border-main)] rounded-xl px-5 py-3 w-max group hover:border-[var(--accent)]/50 transition-all cursor-default">
+              <div className="w-10 h-10 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center text-[var(--accent)]">
+                <CreditCard size={20} />
+              </div>
+              <div>
+                <p className="text-[var(--text-dim)] text-[10px] uppercase font-bold tracking-widest">Wallet Funding Details</p>
+                <p className="text-[var(--text-main)] text-sm font-bold tracking-wide mt-0.5">
+                  {summary.virtualAccountNumber} <span className="text-[var(--text-dim)] font-normal mx-1">•</span> {summary.virtualAccountBank || 'OPay Bank'}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {error && (
-        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-3 text-yellow-400 text-sm flex items-center gap-2">
-          <AlertTriangle size={16} />
-          {error}. Showing placeholder data. Check API connection.
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={16} />
+            <span>Connection issue: Data might be outdated.</span>
+          </div>
+          <button onClick={() => refetchSum()} className="flex items-center gap-1 hover:underline">
+            <RefreshCw size={14} /> Retry
+          </button>
         </div>
       )}
 
@@ -154,48 +162,50 @@ export function DashboardScreen({ onNavigate }: DashboardScreenProps) {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
-              className="bg-[#161B27] border border-[#1E2535] rounded-2xl p-5 hover:border-[#2A3548] transition-colors"
+              className="bg-[var(--bg-secondary)] border border-[var(--border-main)] rounded-2xl p-5 hover:border-[var(--accent)]/30 transition-all shadow-sm hover:shadow-lg group"
             >
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-4">
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  className="w-12 h-12 rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform"
                   style={{ backgroundColor: `${stat.color}15` }}
                 >
-                  <Icon size={18} style={{ color: stat.color }} />
+                  <Icon size={22} style={{ color: stat.color }} />
                 </div>
-                <span
-                  className={`text-xs font-medium px-2 py-1 rounded-lg ${stat.up
+                <div
+                  className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full ${stat.up
                     ? 'bg-[#00D084]/10 text-[#00D084]'
                     : 'bg-[#EF4444]/10 text-[#EF4444]'
                     }`}
                 >
+                  {stat.up ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
                   {stat.change}
-                </span>
+                </div>
               </div>
-              <p className="text-[#94A3B8] text-xs mb-1">{stat.label}</p>
-              <p className="text-[#F1F5F9] text-xl font-bold">{stat.value}</p>
+              <p className="text-[var(--text-dim)] text-xs font-medium mb-1">{stat.label}</p>
+              <p className="text-[var(--text-main)] text-2xl font-black tracking-tight">{stat.value}</p>
             </motion.div>
           );
         })}
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {quickActions.map((action) => {
           const Icon = action.icon;
           return (
             <button
               key={action.label}
               onClick={() => onNavigate(action.screen)}
-              className="bg-[#161B27] border border-[#1E2535] rounded-2xl p-4 hover:border-[#2A3548] transition-all group"
+              className="bg-[var(--bg-secondary)] border border-[var(--border-main)] rounded-2xl p-4 hover:border-[var(--accent)] transition-all group shadow-sm hover:shadow-md active:scale-95"
             >
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform"
+                className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 group-hover:rotate-12 transition-transform shadow-inner"
                 style={{ backgroundColor: `${action.color}15` }}
               >
                 <Icon size={18} style={{ color: action.color }} />
               </div>
-              <p className="text-[#F1F5F9] text-sm font-medium">{action.label}</p>
+              <p className="text-[var(--text-main)] text-xs font-bold text-left">{action.label}</p>
+              <p className="text-[var(--text-dim)] text-[10px] text-left mt-0.5 group-hover:text-[var(--accent)] transition-colors">Access shortcut →</p>
             </button>
           );
         })}
@@ -204,120 +214,132 @@ export function DashboardScreen({ onNavigate }: DashboardScreenProps) {
       {/* Two Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Transactions */}
-        <div className="bg-[#161B27] border border-[#1E2535] rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-[#F1F5F9] text-base font-semibold">
-              Recent Transactions
-            </h3>
+        <div className="bg-[var(--bg-secondary)] border border-[var(--border-main)] rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="text-[var(--text-main)] text-base font-bold">
+                Recent Transactions
+              </h3>
+              <p className="text-[var(--text-dim)] text-[10px]">Latest financial movements</p>
+            </div>
             <button
               onClick={() => onNavigate('transactions')}
-              className="text-[#00D084] text-xs font-medium hover:underline"
+              className="px-3 py-1.5 bg-[var(--bg-tertiary)] text-[var(--text-main)] text-[10px] font-bold rounded-lg hover:bg-[var(--accent)] hover:text-[var(--bg-primary)] transition-all"
             >
-              View All
+              View Full History
             </button>
           </div>
 
           {recentTxns.length === 0 ? (
-            <div className="text-center py-8">
-              <CreditCard size={32} className="text-[#475569] mx-auto mb-3" />
-              <p className="text-[#94A3B8] text-sm">No transactions yet</p>
-              <p className="text-[#475569] text-xs mt-1">
-                Your recent transactions will appear here
+            <div className="text-center py-12 bg-[var(--bg-primary)]/30 rounded-2xl border border-dashed border-[var(--border-main)]">
+              <div className="w-12 h-12 bg-[var(--bg-tertiary)] rounded-full flex items-center justify-center mx-auto mb-3">
+                <CreditCard size={20} className="text-[var(--text-dim)]" />
+              </div>
+              <p className="text-[var(--text-main)] text-sm font-medium">No transactions found</p>
+              <p className="text-[var(--text-dim)] text-xs mt-1 max-w-[200px] mx-auto">
+                Transactions will appear here once you start taking payments or funding.
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {recentTxns.slice(0, 5).map((txn: any) => (
                 <div
                   key={txn.id}
-                  className="flex items-center justify-between py-2 border-b border-[#1E2535] last:border-0"
+                  className="flex items-center justify-between py-1 group"
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center ${txn.type === 'CREDIT'
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform ${txn.type === 'CREDIT'
                         ? 'bg-[#00D084]/10'
                         : 'bg-[#EF4444]/10'
                         }`}
                     >
                       {txn.type === 'CREDIT' ? (
-                        <ArrowDownRight size={14} className="text-[#00D084]" />
+                        <ArrowDownRight size={16} className="text-[#00D084]" />
                       ) : (
-                        <ArrowUpRight size={14} className="text-[#EF4444]" />
+                        <ArrowUpRight size={16} className="text-[#EF4444]" />
                       )}
                     </div>
                     <div>
-                      <p className="text-[#F1F5F9] text-sm font-medium">
+                      <p className="text-[var(--text-main)] text-sm font-bold group-hover:text-[var(--accent)] transition-colors">
                         {txn.description}
                       </p>
-                      <p className="text-[#475569] text-xs">
+                      <p className="text-[var(--text-dim)] text-[10px] font-medium tracking-wide">
                         {new Date(txn.date).toLocaleDateString('en-NG', {
                           day: 'numeric',
                           month: 'short',
+                          year: 'numeric'
                         })}
                       </p>
                     </div>
                   </div>
-                  <span
-                    className={`text-sm font-semibold ${txn.type === 'CREDIT' ? 'text-[#00D084]' : 'text-[#EF4444]'
-                      }`}
-                  >
-                    {txn.type === 'CREDIT' ? '+' : '-'}
-                    {formatNaira(txn.amount)}
-                  </span>
+                  <div className="text-right">
+                    <p className={`text-sm font-black ${txn.type === 'CREDIT' ? 'text-[#00D084]' : 'text-[#EF4444]'}`}>
+                      {txn.type === 'CREDIT' ? '+' : '-'}
+                      {formatNaira(txn.amount)}
+                    </p>
+                    <p className="text-[var(--text-dim)] text-[8px] uppercase font-black opacity-50">COMPLETED</p>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Activity Feed */}
-        <div className="bg-[#161B27] border border-[#1E2535] rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-[#F1F5F9] text-base font-semibold">
-              Recent Messages & Activity
-            </h3>
+        {/* Activity & Chat Feed */}
+        <div className="bg-[var(--bg-secondary)] border border-[var(--border-main)] rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="text-[var(--text-main)] text-base font-bold">
+                Communication & Activity
+              </h3>
+              <p className="text-[var(--text-dim)] text-[10px]">Real-time business updates</p>
+            </div>
             <button
               onClick={() => onNavigate('comms')}
-              className="text-[#00D084] text-xs font-medium hover:underline"
+              className="px-3 py-1.5 bg-[var(--bg-tertiary)] text-[var(--text-main)] text-[10px] font-bold rounded-lg hover:bg-[var(--accent)] hover:text-[var(--bg-primary)] transition-all"
             >
-              Go to Chat
+              Open Messaging
             </button>
           </div>
 
-          {(activity.length === 0 && recentMsgs.length === 0) ? (
-            <div className="text-center py-8">
-              <MessageSquare size={32} className="text-[#475569] mx-auto mb-3" />
-              <p className="text-[#94A3B8] text-sm">No recent messages</p>
+          {(activityLog.length === 0 && recentMsgs.length === 0) ? (
+            <div className="text-center py-12 bg-[var(--bg-primary)]/30 rounded-2xl border border-dashed border-[var(--border-main)]">
+              <div className="w-12 h-12 bg-[var(--bg-tertiary)] rounded-full flex items-center justify-center mx-auto mb-3">
+                <MessageSquare size={20} className="text-[var(--text-dim)]" />
+              </div>
+              <p className="text-[var(--text-main)] text-sm font-medium">Clear for now</p>
+              <p className="text-[var(--text-dim)] text-xs mt-1">Activities and team messages will show up here.</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-5">
               {recentMsgs.map((msg: any) => (
-                <div key={msg.id} className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#3B82F6] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                    {msg.sender?.slice(0, 2).toUpperCase() || '??'}
+                <div key={msg.id} className="flex gap-4 group">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6] flex items-center justify-center text-white text-[10px] font-black flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform">
+                    {msg.sender?.substring(0, 2).toUpperCase() || '??'}
                   </div>
-                  <div className="flex-1 bg-[#0F1117] rounded-xl rounded-tl-none px-4 py-2 border border-[#1E2535]">
+                  <div className="flex-1 bg-[var(--bg-primary)]/40 rounded-2xl rounded-tl-none px-4 py-3 border border-[var(--border-main)] group-hover:border-[var(--accent)]/30 transition-all">
                     <div className="flex justify-between items-center mb-1">
-                      <p className="text-[#F1F5F9] text-xs font-bold">{msg.sender}</p>
-                      <p className="text-[#475569] text-[10px]">
+                      <p className="text-[var(--text-main)] text-xs font-black">{msg.sender}</p>
+                      <p className="text-[var(--text-dim)] text-[9px] font-medium">
                         {new Date(msg.time).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
-                    <p className="text-[#94A3B8] text-sm line-clamp-2">{msg.text}</p>
+                    <p className="text-[var(--text-muted)] text-xs line-clamp-2 leading-relaxed">{msg.text}</p>
                   </div>
                 </div>
               ))}
-              {activity.slice(0, 3).map((item: any) => (
+              {activityLog.slice(0, 3).map((item: any) => (
                 <div
                   key={item.id}
-                  className="flex items-start gap-3 py-2 border-t border-[#1E2535] mt-2 pt-3"
+                  className="flex items-start gap-3 py-3 border-t border-[var(--border-main)]/50 mt-2"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-[#00D084]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Zap size={14} className="text-[#00D084]" />
+                  <div className="w-9 h-9 rounded-xl bg-[var(--accent)]/10 flex items-center justify-center flex-shrink-0 mt-0.5 text-[var(--accent)] shadow-inner">
+                    <Zap size={16} />
                   </div>
-                  <div>
-                    <p className="text-[#F1F5F9] text-sm">{item.text}</p>
-                    <p className="text-[#475569] text-xs mt-1">
+                  <div className="flex-1">
+                    <p className="text-[var(--text-main)] text-xs font-bold">{item.text}</p>
+                    <p className="text-[var(--text-dim)] text-[10px] font-medium mt-1">
                       {new Date(item.time).toLocaleString('en-NG', {
                         day: 'numeric',
                         month: 'short',
@@ -334,32 +356,36 @@ export function DashboardScreen({ onNavigate }: DashboardScreenProps) {
       </div>
 
       {/* Team Members Section */}
-      <div className="bg-[#161B27] border border-[#1E2535] rounded-2xl p-5 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-[#F1F5F9] text-base font-semibold">Team Members</h3>
+      <div className="bg-[var(--bg-secondary)] border border-[var(--border-main)] rounded-2xl p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="text-[var(--text-main)] text-base font-bold">Workspace Personnel</h3>
+            <p className="text-[var(--text-dim)] text-[10px]">Your active team members</p>
+          </div>
           <button
             onClick={() => onNavigate('staff')}
-            className="text-[#00D084] text-xs font-medium hover:underline"
+            className="text-[var(--accent)] text-xs font-bold hover:underline"
           >
-            Manage Staff
+            Manage All Staff →
           </button>
         </div>
 
         {teamMembers.length === 0 ? (
-          <div className="text-center py-6 border border-dashed border-[#2A3548] rounded-xl bg-[#0F1117]">
-            <Users size={24} className="text-[#475569] mx-auto mb-2" />
-            <p className="text-[#94A3B8] text-sm">No team members added yet</p>
+          <div className="text-center py-10 bg-[var(--bg-primary)]/30 rounded-2xl border border-dashed border-[var(--border-main)]">
+            <Users size={28} className="text-[var(--text-dim)] mx-auto mb-3" />
+            <p className="text-[var(--text-main)] text-sm font-medium">The team is quiet for now</p>
+            <p className="text-[var(--text-dim)] text-xs mt-1">No staff members have been added to your business.</p>
           </div>
         ) : (
-          <div className="flex flex-wrap gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {teamMembers.map((member: any) => (
-              <div key={member.id} className="flex items-center gap-3 bg-[#0F1117] border border-[#1E2535] rounded-xl px-4 py-3 min-w-[200px]">
-                <div className="w-10 h-10 rounded-full bg-[#8B5CF6]/20 flex items-center justify-center text-[#8B5CF6] text-sm font-bold border border-[#8B5CF6]/30">
-                  {member.fullName?.slice(0, 2).toUpperCase() || '??'}
+              <div key={member.id} className="flex items-center gap-3 bg-[var(--bg-primary)]/50 border border-[var(--border-main)] rounded-2xl px-4 py-3 group hover:border-[var(--accent)] transition-all cursor-default">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#8B5CF6] to-[#3B82F6] flex items-center justify-center text-white text-xs font-black shadow-md shadow-black/20 group-hover:scale-110 transition-transform">
+                  {member.fullName?.substring(0, 2).toUpperCase() || '??'}
                 </div>
                 <div>
-                  <p className="text-[#F1F5F9] text-sm font-medium">{member.fullName}</p>
-                  <p className="text-[#475569] text-xs">{member.role || 'Staff'}</p>
+                  <p className="text-[var(--text-main)] text-xs font-black truncate max-w-[120px]">{member.fullName}</p>
+                  <p className="text-[var(--text-dim)] text-[9px] font-medium uppercase tracking-tighter mt-0.5">{member.role || 'Personnel'}</p>
                 </div>
               </div>
             ))}
@@ -368,32 +394,44 @@ export function DashboardScreen({ onNavigate }: DashboardScreenProps) {
       </div>
 
       {/* System Status Bar */}
-      <div className="bg-[#161B27] border border-[#1E2535] rounded-2xl p-5">
-        <h3 className="text-[#F1F5F9] text-base font-semibold mb-4">
-          System Status
+      <div className="bg-[var(--bg-secondary)] border border-[var(--border-main)] rounded-2xl p-6 shadow-xl">
+        <h3 className="text-[var(--text-main)] text-base font-bold mb-5 flex items-center gap-2">
+          Infrastructure Status <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
         </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-[#00D084]" />
-            <span className="text-[#94A3B8] text-sm">
-              CCTV: {summary?.camerasOnline || 0}/{summary?.totalCameras || 0} Online
-            </span>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="bg-[var(--bg-primary)]/40 p-3 rounded-xl border border-[var(--border-main)]">
+            <p className="text-[var(--text-dim)] text-[9px] uppercase font-black mb-2 opacity-50">Surveillance</p>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-[#00D084] live-dot" />
+              <span className="text-[var(--text-main)] text-[11px] font-bold">
+                {summary?.camerasOnline || 0}/{summary?.totalCameras || 0} Online
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-[#3B82F6]" />
-            <span className="text-[#94A3B8] text-sm">
-              Staff: {summary?.activeStaff || 0} Active
-            </span>
+          <div className="bg-[var(--bg-primary)]/40 p-3 rounded-xl border border-[var(--border-main)]">
+            <p className="text-[var(--text-dim)] text-[9px] uppercase font-black mb-2 opacity-50">Team Sync</p>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-[#3B82F6]" />
+              <span className="text-[var(--text-main)] text-[11px] font-bold">
+                {summary?.activeStaff || 0} Registered
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-[#8B5CF6]" />
-            <span className="text-[#94A3B8] text-sm">
-              Messages: {summary?.unreadMessages || 0} Unread
-            </span>
+          <div className="bg-[var(--bg-primary)]/40 p-3 rounded-xl border border-[var(--border-main)]">
+            <p className="text-[var(--text-dim)] text-[9px] uppercase font-black mb-2 opacity-50">Communications</p>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-[#8B5CF6] badge-pulse" />
+              <span className="text-[var(--text-main)] text-[11px] font-bold">
+                {summary?.unreadMessages || 0} New Chats
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-[#00D084]" />
-            <span className="text-[#94A3B8] text-sm">API: Connected</span>
+          <div className="bg-[var(--bg-primary)]/40 p-3 rounded-xl border border-[var(--border-main)]">
+            <p className="text-[var(--text-dim)] text-[9px] uppercase font-black mb-2 opacity-50">Core Engine</p>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-[#00D084]" />
+              <span className="text-[var(--text-main)] text-[11px] font-bold">Operational</span>
+            </div>
           </div>
         </div>
       </div>

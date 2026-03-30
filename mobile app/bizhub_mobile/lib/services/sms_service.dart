@@ -6,16 +6,20 @@ class SmsService {
   static final Telephony telephony = Telephony.instance;
 
   static Future<void> initialize() async {
-    bool? permissionsGranted = await telephony.requestPhoneAndSmsPermissions;
-    if (permissionsGranted == true) {
-      log('SMS permissions granted');
-      telephony.listenIncomingSms(
-        onNewMessage: _handleIncomingSms,
-        onBackgroundMessage: backgroundMessageHandler,
-        listenInBackground: true,
-      );
-    } else {
-      log('SMS permissions denied');
+    try {
+      bool? permissionsGranted = await telephony.requestPhoneAndSmsPermissions;
+      if (permissionsGranted == true) {
+        log('SMS permissions granted');
+        telephony.listenIncomingSms(
+          onNewMessage: _handleIncomingSms,
+          onBackgroundMessage: backgroundMessageHandler,
+          listenInBackground: true,
+        );
+      } else {
+        log('SMS permissions denied');
+      }
+    } catch (e) {
+      log('SMS initialization failed (possibly unsupported platform): $e');
     }
   }
 

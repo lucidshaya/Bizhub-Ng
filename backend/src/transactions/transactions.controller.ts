@@ -58,6 +58,12 @@ export class TransactionsController {
         return this.txnService.create(businessId, dto);
     }
 
+    @Post('sync')
+    async sync(@Request() req: any) {
+        const businessId = await this.getBusinessId(req.user.sub);
+        return this.txnService.syncTransactions(businessId);
+    }
+
     @Delete(':id')
     async delete(@Param('id') id: string, @Request() req: any) {
         const businessId = await this.getBusinessId(req.user.sub);

@@ -237,7 +237,7 @@ class _SignupScreenState extends State<SignupScreen> {
               const SizedBox(height: 12),
               _label('Business Type *'),
               DropdownButtonFormField<String>(
-                value: _bizType.isEmpty ? null : _bizType,
+                initialValue: _bizType.isEmpty ? null : _bizType,
                 items: const [
                   DropdownMenuItem(
                     value: 'Corporate/Workplace',
