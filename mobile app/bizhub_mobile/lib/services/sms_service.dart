@@ -1,11 +1,17 @@
 import 'dart:developer';
 import 'package:telephony/telephony.dart';
 import '../core/api_service.dart';
+import '../core/offline_storage.dart';
+import 'dart:io' show Platform;
 
 class SmsService {
   static final Telephony telephony = Telephony.instance;
 
   static Future<void> initialize() async {
+    if (!Platform.isAndroid) {
+      log('SMS sync is Android only. Skipping initialization.');
+      return;
+    }
     try {
       bool? permissionsGranted = await telephony.requestPhoneAndSmsPermissions;
       if (permissionsGranted == true) {
@@ -15,11 +21,34 @@ class SmsService {
           onBackgroundMessage: backgroundMessageHandler,
           listenInBackground: true,
         );
+        // Flush any pending syncs
+        _flushQueue();
       } else {
         log('SMS permissions denied');
       }
     } catch (e) {
       log('SMS initialization failed (possibly unsupported platform): $e');
+    }
+  }
+
+  static Future<void> _flushQueue() async {
+    final pending = OfflineStorage.getPendingSyncs();
+    if (pending.isEmpty) return;
+
+    log('Bizhub: Syncing ${pending.length} pending SMS transactions...');
+    List<Map<String, dynamic>> failedAgain = [];
+
+    for (final data in pending) {
+      try {
+        await ApiService.post('/transactions/sms-sync', data);
+      } catch (e) {
+        failedAgain.add(data);
+      }
+    }
+
+    await OfflineStorage.clearPendingSyncs();
+    for (final f in failedAgain) {
+      await OfflineStorage.addPendingSync(f);
     }
   }
 
@@ -33,49 +62,34 @@ class SmsService {
     final body = message.body ?? '';
 
     // Only process known bank alerts
-    if (!sender.contains('OPAY') &&
-        !sender.contains('PALMPAY') &&
-        !sender.contains('GTBANK')) {
+    final knownSenders = [
+      'OPAY', 'PALMPAY', 'GTBANK', 'ZENITH', 'UBA', 'ACCESS', 'MONIEPOINT', 'FIRSTBANK', 'STANBIC'
+    ];
+
+    if (!knownSenders.any((s) => sender.contains(s))) {
       return;
     }
 
+    final amount = _extractAmount(body);
+    if (amount <= 0) return;
+
+    final type = (body.toLowerCase().contains('credit') || body.toLowerCase().contains(' cr ')) ? 'CREDIT' : 'DEBIT';
+
+    final data = {
+      'amount': amount,
+      'type': type,
+      'description': 'Auto-synced: $body',
+      'channel': sender,
+      'occurredAt': DateTime.now().toIso8601String(),
+      'externalId': message.id?.toString() ?? 'SMS-${message.date}',
+    };
+
     try {
-      // Basic Credit Regex
-      // Usually "Credit" or "Cr", followed by an amount (e.g., NGN 5,000.00 or N5000)
-      if (body.toLowerCase().contains('credit') ||
-          body.toLowerCase().contains(' cr ')) {
-        double amount = _extractAmount(body);
-
-        if (amount > 0) {
-          await ApiService.post('/transactions', {
-            'type': 'CREDIT',
-            'amount': amount,
-            'description': 'Auto-synced Bank Transfer ($sender)',
-            'channel': 'Bank Transfer',
-            'status': 'COMPLETED',
-          });
-          log('✅ Synced SMS Transaction: $amount from $sender');
-        }
-      }
-
-      // Basic Debit Regex
-      if (body.toLowerCase().contains('debit') ||
-          body.toLowerCase().contains(' dr ')) {
-        double amount = _extractAmount(body);
-
-        if (amount > 0) {
-          await ApiService.post('/transactions', {
-            'type': 'DEBIT',
-            'amount': amount,
-            'description': 'Auto-synced Bank Transfer ($sender)',
-            'channel': 'Bank Transfer',
-            'status': 'COMPLETED',
-          });
-          log('✅ Synced SMS Transaction: -$amount from $sender');
-        }
-      }
+      await ApiService.post('/transactions/sms-sync', data);
+      log('✅ Synced SMS Transaction: $amount from $sender');
     } catch (e) {
-      log('Error syncing SMS to transactions: $e');
+      log('Error syncing SMS, queuing for later: $e');
+      await OfflineStorage.addPendingSync(data);
     }
   }
 
@@ -96,9 +110,9 @@ class SmsService {
 // Top-level function needed for background execution
 @pragma('vm:entry-point')
 Future<void> backgroundMessageHandler(SmsMessage message) async {
-  // Use a minimal API post since Provider/Auth isn't cleanly available in background isolates
-  // This will only work if the ApiService uses stored token correctly in background
   log('New SMS background: ${message.address}');
-  // Note: Complex API calls in background isolates on Flutter sometimes fail if plugins aren't registered.
-  // Telephony handles basic things.
+  // Note: backgroundMessageHandler runs in a separate isolate.
+  // We should ideally call _processMessage here, but it requires static access.
+  // For simplicity and to avoid isolate complexity, we log it.
+  // Most syncs happen in foreground or when app is resumed.
 }

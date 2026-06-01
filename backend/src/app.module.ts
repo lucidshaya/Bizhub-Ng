@@ -17,6 +17,11 @@ import { EmailModule } from './email/email.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
 import { SupportModule } from './support/support.module';
+import { InventoryModule } from './inventory/inventory.module';
+import { SalesModule } from './sales/sales.module';
+import { RetailAnalyticsModule } from './retail-analytics/retail-analytics.module';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 
 @Module({
   imports: [
@@ -31,9 +36,11 @@ import { SupportModule } from './support/support.module';
             ttl: 300000, // 5 minutes default TTL
           });
           return { store };
-        } catch (error) {
-          console.warn('Redis Connection Error: falling back to in-memory cache.');
-          return {}; // Memory store is default when no store is provided
+        } catch {
+          console.warn(
+            'Redis Connection Error: falling back to in-memory cache.',
+          );
+          return {};
         }
       },
       inject: [ConfigService],
@@ -53,6 +60,11 @@ import { SupportModule } from './support/support.module';
     WebhooksModule,
     WaitlistModule,
     SupportModule,
+    InventoryModule,
+    SalesModule,
+    RetailAnalyticsModule,
   ],
+  controllers: [AppController],
+  providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

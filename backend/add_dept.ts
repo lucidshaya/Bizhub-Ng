@@ -5,7 +5,7 @@ import pg from 'pg';
 async function main() {
     console.log("Setting up connection...");
     const pool = new pg.Pool({
-        connectionString: "postgresql://postgres.gypptbedjebrwhovpwsu:ohineivori77u@aws-1-eu-central-1.pooler.supabase.com:6543/postgres",
+        connectionString: "postgresql://postgres.gypptbedjebrwhovpwsu:ohineivori77u@aws-1-eu-central-1.pooler.supabase.com:5432/postgres",
     });
     const adapter = new PrismaPg(pool);
     const prisma = new PrismaClient({ adapter });

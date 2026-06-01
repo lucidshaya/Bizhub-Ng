@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Users, Network, Plus, Trash2, Loader2, Save, Clock } from 'lucide-react';
+import { Building2, Users, Network, Plus, Trash2, Loader2, Save, Clock, Shield, ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { settingsApi } from '../../services/api';
+import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from './Toast';
 
 export function OrganizationSettingsScreen() {
     const toast = useToast();
+    const { user } = useAuth();
     const [departments, setDepartments] = useState<string[]>([]);
     const [newDept, setNewDept] = useState('');
     const [morningShift, setMorningShift] = useState('09:00 - 17:00');
@@ -13,9 +16,22 @@ export function OrganizationSettingsScreen() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [business, setBusiness] = useState<any>(null);
+    const [teamMembers, setTeamMembers] = useState<any[]>([]);
+    const [roleChanges, setRoleChanges] = useState<Record<string, string>>({});
+    const [savingRole, setSavingRole] = useState<string | null>(null);
+
+    const ROLE_OPTIONS = [
+        { value: 'ADMIN', label: 'Sub Admin', color: '#3B82F6' },
+        { value: 'WORKER', label: 'Worker', color: '#F59E0B' },
+        { value: 'VIEWER', label: 'Viewer', color: '#8B5CF6' },
+    ];
+    const roleLabel = (role: string) => ({ OWNER: 'Owner', ADMIN: 'Sub Admin', WORKER: 'Worker', VIEWER: 'Viewer', STAFF: 'Staff' }[role] || role);
+    const roleColor = (role: string) => ({ OWNER: '#00D084', ADMIN: '#3B82F6', WORKER: '#F59E0B', VIEWER: '#8B5CF6', STAFF: '#94A3B8' }[role] || '#94A3B8');
+
 
     useEffect(() => {
         loadProfile();
+        loadTeam();
     }, []);
 
     const loadProfile = async () => {
@@ -32,6 +48,30 @@ export function OrganizationSettingsScreen() {
             setIsLoading(false);
         }
     };
+
+    const loadTeam = async () => {
+        try {
+            const res = await api.get('/auth/team');
+            setTeamMembers(res.data);
+        } catch { /* silent */ }
+    };
+
+    const saveRole = async (memberId: string) => {
+        const newRole = roleChanges[memberId];
+        if (!newRole) return;
+        setSavingRole(memberId);
+        try {
+            await api.patch(`/auth/team/${memberId}/role`, { role: newRole });
+            toast.success('Role updated — email notification sent');
+            setRoleChanges(prev => { const n = { ...prev }; delete n[memberId]; return n; });
+            loadTeam();
+        } catch (e: any) {
+            toast.error(e.response?.data?.message || 'Failed to update role');
+        } finally {
+            setSavingRole(null);
+        }
+    };
+
 
     const handleAddDept = async () => {
         if (!newDept.trim() || departments.includes(newDept.trim())) return;
@@ -268,6 +308,70 @@ export function OrganizationSettingsScreen() {
 
                 </div>
             </div>
+            {/* Team Members */}
+            {(user?.role === 'OWNER' || user?.role === 'ADMIN') && (
+                <div className="bg-[#161B27] border border-[#1E2535] rounded-2xl p-6 shadow-lg">
+                    <h3 className="text-[#F1F5F9] font-bold text-lg flex items-center gap-2 mb-2">
+                        <Shield className="text-[#3B82F6]" size={20} /> Team Members & Roles
+                    </h3>
+                    <p className="text-[#94A3B8] text-sm mb-5">Change a member's role. They will receive an email notification automatically.</p>
+                    {teamMembers.length === 0 ? (
+                        <p className="text-[#475569] text-sm text-center py-6">No team members found. Invite workers to get started.</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {teamMembers.map(member => {
+                                const isOwner = member.role === 'OWNER';
+                                const isMe = member.id === user?.id;
+                                const currentRole = roleChanges[member.id] || member.role;
+                                return (
+                                    <motion.div key={member.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                                        className="flex items-center justify-between bg-[#0F1117] border border-[#1E2535] rounded-xl px-4 py-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
+                                                style={{ background: `${roleColor(member.role)}20`, color: roleColor(member.role) }}>
+                                                {member.fullName?.[0] || '?'}
+                                            </div>
+                                            <div>
+                                                <p className="text-[#F1F5F9] text-sm font-semibold">{member.fullName} {isMe && <span className="text-xs text-[#475569]">(you)</span>}</p>
+                                                <p className="text-[#64748B] text-xs">{member.email}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {isOwner || isMe ? (
+                                                <span className="px-3 py-1 rounded-lg text-xs font-bold" style={{ background: `${roleColor(member.role)}20`, color: roleColor(member.role) }}>
+                                                    {roleLabel(member.role)}
+                                                </span>
+                                            ) : (
+                                                <>
+                                                    <select
+                                                        value={currentRole}
+                                                        onChange={e => setRoleChanges(prev => ({ ...prev, [member.id]: e.target.value }))}
+                                                        className="bg-[#161B27] border border-[#1E2535] rounded-lg px-3 py-1.5 text-xs text-[#F1F5F9] focus:outline-none focus:border-[#3B82F6] transition-colors"
+                                                    >
+                                                        {ROLE_OPTIONS.map(r => (
+                                                            <option key={r.value} value={r.value}>{r.label}</option>
+                                                        ))}
+                                                    </select>
+                                                    {roleChanges[member.id] && roleChanges[member.id] !== member.role && (
+                                                        <button
+                                                            onClick={() => saveRole(member.id)}
+                                                            disabled={savingRole === member.id}
+                                                            className="bg-[#3B82F6] hover:bg-[#2563EB] disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
+                                                        >
+                                                            {savingRole === member.id ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
+                                                            Save
+                                                        </button>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

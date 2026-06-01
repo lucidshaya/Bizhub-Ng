@@ -18,7 +18,10 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _error;
 
   Future<void> _submit() async {
-    if (_emailCtrl.text.isEmpty || _passCtrl.text.isEmpty) return;
+    if (_emailCtrl.text.isEmpty || _passCtrl.text.isEmpty) {
+      setState(() => _error = 'Please enter both your email and password.');
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;
@@ -30,7 +33,16 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       if (mounted) Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
-      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      if (!mounted) return;
+      
+      String errorMsg = e.toString().replaceFirst('Exception: ', '');
+      if (errorMsg.toLowerCase().contains('invalid credentials') || 
+          errorMsg.toLowerCase().contains('unauthorized') ||
+          errorMsg.toLowerCase().contains('password')) {
+        errorMsg = 'Wrong email or password. Please try again.';
+      }
+      
+      setState(() => _error = errorMsg);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

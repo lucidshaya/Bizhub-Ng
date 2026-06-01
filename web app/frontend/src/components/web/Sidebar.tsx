@@ -9,22 +9,20 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Globe,
   Lock,
   Building2,
-  AlertOctagon
+  AlertOctagon,
+  Home
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { WebScreen } from '../../pages/WebApp';
 import { useAuth } from '../../context/AuthContext';
-import { useToast } from './Toast';
 
 interface SidebarProps {
   activeScreen: WebScreen;
   setActiveScreen: (screen: WebScreen) => void;
   collapsed: boolean;
   setCollapsed: (v: boolean) => void;
-  onGoToLanding: () => void;
   onReport: () => void;
 }
 
@@ -77,23 +75,19 @@ export function Sidebar({
   setActiveScreen,
   collapsed,
   setCollapsed,
-  onGoToLanding,
   onReport,
 }: SidebarProps) {
   const { user, logout } = useAuth();
-  const toast = useToast();
 
   // Filter nav items based on user role
   const filteredNavItems = navItems.filter(item => {
     if (user?.role === 'WORKER') {
-      if (item.id === 'transactions') return false;
-      if (item.id === 'organization') return false;
-      if (item.id === 'staff') return false;
-
       if (user?.businessType === 'Corporate/Workplace') {
-        if (item.id !== 'comms' && item.id !== 'settings') return false;
+        // Corporate Worker: Dashboard, Comms, Settings
+        if (item.id !== 'dashboard' && item.id !== 'comms' && item.id !== 'settings') return false;
       } else {
-        if (item.id !== 'dashboard' && item.id !== 'cctv' && item.id !== 'comms' && item.id !== 'settings') return false;
+        // Retail Worker: Transactions, Comms, Settings
+        if (item.id !== 'transactions' && item.id !== 'comms' && item.id !== 'settings') return false;
       }
     }
     return true;
@@ -111,15 +105,18 @@ export function Sidebar({
       className="relative flex flex-col bg-[var(--bg-secondary)] border-r border-[var(--border-main)] h-full flex-shrink-0 z-20 transition-colors duration-200">
 
       {/* Logo */}
-      <div className="relative flex items-center justify-between px-4 h-16 border-b border-[var(--border-main)] flex-shrink-0">
+      <button 
+        onClick={() => setActiveScreen('dashboard')}
+        className="relative flex items-center justify-between px-4 h-16 border-b border-[var(--border-main)] flex-shrink-0 hover:bg-[var(--bg-primary)] transition-colors w-full text-left cursor-pointer group"
+      >
         {!collapsed &&
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="flex items-center gap-2">
 
-            <div className="w-8 h-8 rounded-lg bg-[var(--accent)] flex items-center justify-center">
-              <span className="text-[var(--bg-primary)] font-black text-sm">B</span>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${activeScreen !== 'dashboard' ? 'bg-[var(--bg-tertiary)] border border-[var(--border-main)] group-hover:bg-[var(--accent)]/20 text-[var(--text-muted)] group-hover:text-[var(--accent)]' : 'bg-[var(--accent)] text-[var(--bg-primary)]'}`}>
+              {activeScreen !== 'dashboard' ? <Home size={16} /> : <span className="font-black text-sm">B</span>}
             </div>
             <span className="text-[var(--text-main)] font-bold text-lg tracking-tight">
               Biz<span className="text-[var(--accent)]">Hub NG</span>
@@ -127,17 +124,17 @@ export function Sidebar({
           </motion.div>
         }
         {collapsed &&
-          <div className="w-8 h-8 rounded-lg bg-[var(--accent)] flex items-center justify-center mx-auto">
-            <span className="text-[var(--bg-primary)] font-black text-sm">B</span>
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto transition-colors ${activeScreen !== 'dashboard' ? 'bg-[var(--bg-tertiary)] border border-[var(--border-main)] group-hover:bg-[var(--accent)]/20 text-[var(--text-muted)] group-hover:text-[var(--accent)]' : 'bg-[var(--accent)] text-[var(--bg-primary)]'}`}>
+            {activeScreen !== 'dashboard' ? <Home size={16} /> : <span className="font-black text-sm">B</span>}
           </div>
         }
-        <button
-          onClick={() => setCollapsed(!collapsed)}
+        <div
+          onClick={(e) => { e.stopPropagation(); setCollapsed(!collapsed); }}
           className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-[var(--bg-tertiary)] border border-[var(--border-muted)] rounded-full flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--accent)] transition-colors z-10 shadow-sm">
 
           {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
-        </button>
-      </div>
+        </div>
+      </button>
 
       {/* Nav Items */}
       <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto app-scroll">

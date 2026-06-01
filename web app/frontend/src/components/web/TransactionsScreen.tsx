@@ -1,13 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Download, Search, ChevronLeft, ChevronRight, MessageSquare, Loader2,
   ArrowUpRight, ArrowDownRight, X, Plus, Trash2, RefreshCw, CreditCard, ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { transactionsApi, authApi } from '../../services/api';
+import { transactionsApi, authApi, settingsApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from './Toast';
+import { socketService } from '../../services/socket';
+
+declare global {
+  interface Window {
+    Connect: any;
+  }
+}
 
 export function TransactionsScreen() {
   const { user } = useAuth();
@@ -15,8 +22,76 @@ export function TransactionsScreen() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
+  const [typeFilter] = useState('');
   const [tabFilter, setTabFilter] = useState('ALL');
+
+  // Real-time socket listener
+  useEffect(() => {
+    const socket = socketService.connect();
+    const handleNewTxn = (data: any) => {
+      queryClient.setQueryData(['transactions', page, typeFilter, tabFilter, search], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          data: [data, ...old.data].slice(0, 10),
+          total: (old.total || 0) + 1
+        };
+      });
+      queryClient.invalidateQueries({ queryKey: ['transactions_summary'] });
+    };
+
+    socket.on('transaction:new', handleNewTxn);
+    
+    return () => {
+      socket.off('transaction:new', handleNewTxn);
+    };
+  }, [page, typeFilter, tabFilter, search, queryClient]);
+
+  const [isLinking, setIsLinking] = useState(false);
+
+  const handleLinkBank = () => {
+    setIsLinking(true);
+    const monoPublicKey = 'test_pk_a2e5mgo018pwipaxv0ql';
+    
+    // Check if script is already loaded
+    if (!window.Connect) {
+      const script = document.createElement('script');
+      script.src = 'https://connect.withmono.com/connect.js';
+      script.onload = () => {
+        const monoConnect = new window.Connect({
+          key: monoPublicKey,
+          onSuccess: ({ code }: { code: string }) => {
+            settingsApi.linkMono(code)
+              .then(() => {
+                toast.success('Bank account linked successfully');
+                queryClient.invalidateQueries({ queryKey: ['transactions'] });
+              })
+              .catch(() => toast.error('Failed to link account'));
+          },
+          onClose: () => setIsLinking(false)
+        });
+        monoConnect.setup();
+        monoConnect.open();
+      };
+      document.body.appendChild(script);
+    } else {
+      const monoConnect = new window.Connect({
+        key: monoPublicKey,
+        onSuccess: ({ code }: { code: string }) => {
+          settingsApi.linkMono(code)
+            .then(() => {
+              toast.success('Bank account linked successfully');
+              queryClient.invalidateQueries({ queryKey: ['transactions'] });
+            })
+            .catch(() => toast.error('Failed to link account'));
+        },
+        onClose: () => setIsLinking(false)
+      });
+      monoConnect.setup();
+      monoConnect.open();
+    }
+  };
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [pin, setPin] = useState('');
   const [unlocked, setUnlocked] = useState(false);
@@ -150,6 +225,13 @@ export function TransactionsScreen() {
 
   const inputClass = 'w-full bg-[var(--bg-primary)] border border-[var(--border-main)] rounded-xl px-4 py-2.5 text-[var(--text-main)] text-sm focus:outline-none focus:border-[var(--accent)] transition-all';
 
+  const sourceColor = (src: string) => {
+    if (src === 'SMS') return 'text-[#00D084] bg-[#00D084]/10';
+    if (src === 'MONO') return 'text-blue-500 bg-blue-500/10';
+    if (src === 'PAYSTACK') return 'text-purple-500 bg-purple-500/10';
+    return 'text-[var(--text-dim)] bg-[var(--bg-tertiary)]';
+  };
+
   if (!unlocked) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -281,6 +363,15 @@ export function TransactionsScreen() {
           >
             <RefreshCw size={18} className={txnLoading ? 'animate-spin' : ''} />
           </button>
+
+          <button
+            onClick={handleLinkBank}
+            disabled={isLinking}
+            className="flex items-center gap-2 bg-[var(--bg-secondary)] border border-[var(--border-main)] text-[var(--text-main)] font-bold px-5 py-2 rounded-xl text-sm hover:bg-[var(--bg-tertiary)] transition-all shadow-sm"
+          >
+            {isLinking ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />} 
+            Link Bank
+          </button>
         </div>
       </div>
 
@@ -317,10 +408,15 @@ export function TransactionsScreen() {
                   <td className={`py-4 px-4 text-sm font-black ${t.type === 'CREDIT' ? 'text-[#00D084]' : 'text-[#EF4444]'}`}>
                     {t.type === 'CREDIT' ? '+' : '-'}{formatNaira(t.amount)}
                   </td>
-                  <td className="py-4 px-4">
-                    <span className="bg-[var(--bg-tertiary)] text-[var(--text-dim)] text-[10px] font-bold px-2 py-1 rounded-md uppercase border border-[var(--border-main)]">
-                      {t.channel}
-                    </span>
+                  <td className="py-4 px-4 overflow-hidden">
+                    <div className="flex items-center gap-2">
+                       <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${sourceColor(t.source)}`}>
+                        {t.source || 'MANUAL'}
+                      </span>
+                      <span className="bg-[var(--bg-tertiary)] text-[var(--text-dim)] text-[10px] font-bold px-2 py-1 rounded-md uppercase border border-[var(--border-main)] whitespace-nowrap">
+                        {t.channel}
+                      </span>
+                    </div>
                   </td>
                   <td className="py-4 px-4">
                     <span className={`text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-wider ${statusColor(t.status)}`}>

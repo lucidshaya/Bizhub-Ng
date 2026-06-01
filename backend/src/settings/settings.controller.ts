@@ -1,79 +1,116 @@
 import {
-    Controller,
-    Get,
-    Patch,
-    Post,
-    Body,
-    UseGuards,
-    Request,
+  Controller,
+  Get,
+  Patch,
+  Post,
+  Body,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
 import { SettingsService } from './settings.service';
-import { UpdateProfileDto, UpdateBusinessDto, ConnectPaymentDto } from './dto/settings.dto';
+import {
+  UpdateProfileDto,
+  UpdateBusinessDto,
+  ConnectPaymentDto,
+  UpgradePlanDto,
+  UpgradePlanPaystackDto,
+} from './dto/settings.dto';
+import { SubscriptionGuard } from '../auth/guards/subscription.guard';
+import { IsBilling } from '../auth/decorators/is-billing.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessPlan } from '@prisma/client';
 
-export class UpgradePlanDto {
-    plan: BusinessPlan;
-}
-
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SubscriptionGuard)
+@IsBilling()
 @Controller('settings')
 export class SettingsController {
-    constructor(
-        private settingsService: SettingsService,
-        private prisma: PrismaService,
-    ) { }
+  constructor(
+    private settingsService: SettingsService,
+    private prisma: PrismaService,
+  ) {}
 
-    private async getBusinessId(userId: string): Promise<string> {
-        const user = await this.prisma.user.findUnique({ where: { id: userId } });
-        if (!user?.businessId) throw new Error('No business found for user');
-        return user.businessId;
-    }
+  private async getBusinessId(userId: string): Promise<string> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user?.businessId) throw new Error('No business found for user');
+    return user.businessId;
+  }
 
-    @Get('profile')
-    async getProfile(@Request() req: any) {
-        return this.settingsService.getProfile(req.user.sub);
-    }
+  @Get('/profile')
+  async getProfile(@Request() req: any) {
+    return this.settingsService.getProfile(req.user.sub);
+  }
 
-    @Patch('profile')
-    async updateProfile(@Body() dto: UpdateProfileDto, @Request() req: any) {
-        return this.settingsService.updateProfile(req.user.sub, dto);
-    }
+  @Patch('/profile')
+  async updateProfile(@Body() dto: UpdateProfileDto, @Request() req: any) {
+    return this.settingsService.updateProfile(req.user.sub, dto);
+  }
 
-    @Patch('business')
-    async updateBusiness(@Body() dto: UpdateBusinessDto, @Request() req: any) {
-        return this.settingsService.updateBusiness(req.user.sub, dto);
-    }
+  @Patch('/business')
+  async updateBusiness(@Body() dto: UpdateBusinessDto, @Request() req: any) {
+    return this.settingsService.updateBusiness(req.user.sub, dto);
+  }
 
-    @Get('payments')
-    async getPaymentIntegrations(@Request() req: any) {
-        const businessId = await this.getBusinessId(req.user.sub);
-        return this.settingsService.getPaymentIntegrations(businessId);
-    }
+  @Get('/payments')
+  async getPaymentIntegrations(@Request() req: any) {
+    const businessId = await this.getBusinessId(req.user.sub);
+    return this.settingsService.getPaymentIntegrations(
+      businessId,
+      req.user.role,
+    );
+  }
 
-    @Post('payments/connect')
-    async connectPayment(@Body() dto: ConnectPaymentDto, @Request() req: any) {
-        const businessId = await this.getBusinessId(req.user.sub);
-        return this.settingsService.connectPayment(businessId, dto);
-    }
+  @Post('/payments/connect')
+  async connectPayment(@Body() dto: ConnectPaymentDto, @Request() req: any) {
+    const businessId = await this.getBusinessId(req.user.sub);
+    return this.settingsService.connectPayment(businessId, dto);
+  }
 
-    @Post('wallet/generate')
-    async generateVirtualAccount(@Request() req: any) {
-        const businessId = await this.getBusinessId(req.user.sub);
-        return this.settingsService.generateVirtualAccount(businessId);
-    }
+  @Post('/wallet/generate')
+  async generateVirtualAccount(@Request() req: any) {
+    const businessId = await this.getBusinessId(req.user.sub);
+    return this.settingsService.generateVirtualAccount(businessId);
+  }
 
-    @Post('wallet/upgrade-plan')
-    async upgradePlan(@Body() dto: UpgradePlanDto, @Request() req: any) {
-        const businessId = await this.getBusinessId(req.user.sub);
-        return this.settingsService.upgradePlan(businessId, dto.plan);
-    }
+  @Post('/wallet/upgrade-plan')
+  async upgradePlanWallet(@Body() dto: UpgradePlanDto, @Request() req: any) {
+    const businessId = await this.getBusinessId(req.user.sub);
+    return this.settingsService.upgradePlan(businessId, dto.plan);
+  }
 
-    @Post('paystack/upgrade-plan')
-    async upgradePlanPaystack(@Body() dto: UpgradePlanDto, @Request() req: any) {
-        const businessId = await this.getBusinessId(req.user.sub);
-        const user = await this.prisma.user.findUnique({ where: { id: req.user.sub } });
-        return this.settingsService.upgradePlanPaystack(businessId, dto.plan, user!.email);
-    }
+  @Post('/paystack/upgrade-plan')
+  async upgradePlanPaystack(
+    @Body() dto: UpgradePlanPaystackDto,
+    @Request() req: any,
+  ) {
+    const businessId = await this.getBusinessId(req.user.sub);
+    const user = await this.prisma.user.findUnique({
+      where: { id: req.user.sub },
+    });
+    return this.settingsService.upgradePlanPaystack(
+      businessId,
+      dto.plan,
+      user!.email,
+      !!dto.isYearly,
+    );
+  }
+
+  @Post('/paystack/verify-upgrade')
+  async verifyPlanUpgrade(
+    @Body('reference') reference: string,
+    @Request() req: any,
+  ) {
+    const businessId = await this.getBusinessId(req.user.sub);
+    return this.settingsService.verifyPlanUpgrade(reference, businessId);
+  }
+
+  @Post('/mono/link')
+  async linkMono(@Body('code') code: string, @Request() req: any) {
+    const businessId = await this.getBusinessId(req.user.sub);
+    await this.prisma.business.update({
+      where: { id: businessId },
+      data: { monoAccountId: code },
+    });
+    return { success: true, message: 'Bank account linked successfully' };
+  }
 }

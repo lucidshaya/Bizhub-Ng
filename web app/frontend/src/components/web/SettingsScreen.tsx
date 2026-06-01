@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
-  User, CreditCard, Shield, Crown, Upload, Eye, EyeOff, Check, Loader2, Save, LogOut, Building2,
+  User, CreditCard, Shield, Crown, Check, Loader2, Save, LogOut, Building2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { settingsApi } from '../../services/api';
+import { settingsApi, authApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from './Toast';
 import { PinSetupModal } from './PinSetupModal';
+import { ChangePasswordModal } from './ChangePasswordModal';
 
 type SettingsTab = 'profile' | 'payments' | 'security' | 'plan';
 
@@ -22,26 +23,29 @@ export function SettingsScreen() {
   const { toast } = useToast() as any;
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
   const [profile, setProfile] = useState<any>(null);
-  const [payments, setPayments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [editProfile, setEditProfile] = useState<any>({});
   const [editBusiness, setEditBusiness] = useState<any>({});
   const [showPinModal, setShowPinModal] = useState(false);
+  const [pinMode, setPinMode] = useState<'setup' | 'change'>('setup');
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
 
   useEffect(() => { loadSettings(); }, []);
 
   const loadSettings = async () => {
     setIsLoading(true);
     try {
-      const [profRes, payRes] = await Promise.all([
-        settingsApi.getProfile(),
-        settingsApi.getPaymentIntegrations(),
-      ]);
+      const profRes = await settingsApi.getProfile();
       setProfile(profRes.data);
-      setPayments(payRes.data);
-      setEditProfile({ fullName: profRes.data.fullName, phone: profRes.data.phone || '' });
+      setEditProfile({ 
+          fullName: profRes.data.fullName, 
+          phone: profRes.data.phone || '',
+          emailNotifications: profRes.data.emailNotifications !== false
+      });
       setEditBusiness(profRes.data.business || {});
+      setTwoFactorEnabled(profRes.data.twoFactorEnabled || false);
     } catch { } finally { setIsLoading(false); }
   };
 
@@ -101,11 +105,20 @@ export function SettingsScreen() {
     } finally { setIsSaving(false); }
   };
 
-  const handleTogglePayment = async (provider: string, connected: boolean) => {
+
+  const handleToggle2FA = async () => {
     try {
-      await settingsApi.connectPayment({ provider, connected: !connected });
-      await loadSettings();
-    } catch { }
+      const newState = !twoFactorEnabled;
+      await authApi.toggle2FA(newState);
+      setTwoFactorEnabled(newState);
+      if ((toast as any).success) {
+        (toast as any).success(`Two-Factor Authentication ${newState ? 'enabled' : 'disabled'}!`);
+      }
+    } catch {
+      if ((toast as any).error) {
+        (toast as any).error('Failed to toggle 2FA.');
+      }
+    }
   };
 
   const inputClass = 'w-full bg-[#0F1117] border border-[#1E2535] rounded-xl px-4 py-2.5 text-[#F1F5F9] text-sm focus:outline-none focus:border-[#00D084]';
@@ -114,14 +127,18 @@ export function SettingsScreen() {
     return <div className="h-full flex items-center justify-center"><Loader2 size={32} className="text-[#00D084] animate-spin" /></div>;
   }
 
-  const providerColors: Record<string, string> = { paystack: '#00C3F7', flutterwave: '#F5A623', moniepoint: '#1A56DB', opay: '#00B140' };
 
   return (
     <div className="p-6">
       <div className="flex gap-6">
         {/* Sidebar Tabs */}
         <div className="w-56 flex-shrink-0 space-y-1">
-          {tabs.map((tab) => {
+          {tabs.filter(tab => {
+            if (user?.role === 'WORKER') {
+              return tab.id === 'profile' || tab.id === 'security';
+            }
+            return true;
+          }).map((tab) => {
             const Icon = tab.icon;
             return (
               <button
@@ -169,7 +186,21 @@ export function SettingsScreen() {
                         <input value={editProfile.phone || ''} onChange={(e) => setEditProfile({ ...editProfile, phone: e.target.value })} className={inputClass} />
                       </div>
                     </div>
-                    <button onClick={handleSaveProfile} disabled={isSaving} className="mt-4 bg-[#00D084] hover:bg-[#00b872] disabled:opacity-50 text-[#0F1117] font-bold px-6 py-2.5 rounded-xl text-sm flex items-center gap-2">
+
+                    <div className="mt-6 p-4 bg-[#0F1117] rounded-xl border border-[#1E2535] flex items-center justify-between">
+                      <div>
+                        <p className="text-[#F1F5F9] text-sm font-medium">Email Notifications</p>
+                        <p className="text-[#475569] text-xs">Receive an email when someone sends you a chat message</p>
+                      </div>
+                      <button
+                        onClick={() => setEditProfile({ ...editProfile, emailNotifications: !editProfile.emailNotifications })}
+                        className={`w-11 h-6 rounded-full transition-colors relative ${editProfile.emailNotifications ? 'bg-[#00D084]' : 'bg-[#1E2535]'}`}
+                      >
+                        <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${editProfile.emailNotifications ? 'right-1' : 'left-1'}`} />
+                      </button>
+                    </div>
+
+                    <button onClick={handleSaveProfile} disabled={isSaving} className="mt-6 bg-[#00D084] hover:bg-[#00b872] disabled:opacity-50 text-[#0F1117] font-bold px-6 py-2.5 rounded-xl text-sm flex items-center gap-2">
                       {isSaving ? <Loader2 size={16} className="animate-spin" /> : <><Save size={16} /> Save Profile</>}
                     </button>
                   </div>
@@ -180,11 +211,11 @@ export function SettingsScreen() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-[#94A3B8] text-xs mb-1">Business Name</label>
-                        <input value={editBusiness.name || ''} onChange={(e) => setEditBusiness({ ...editBusiness, name: e.target.value })} className={inputClass} />
+                        <input disabled value={editBusiness.name || ''} className={`${inputClass} opacity-50 cursor-not-allowed`} />
                       </div>
                       <div>
                         <label className="block text-[#94A3B8] text-xs mb-1">Type</label>
-                        <input value={editBusiness.type || ''} onChange={(e) => setEditBusiness({ ...editBusiness, type: e.target.value })} className={inputClass} />
+                        <input disabled value={editBusiness.type || ''} className={`${inputClass} opacity-50 cursor-not-allowed`} />
                       </div>
                       <div>
                         <label className="block text-[#94A3B8] text-xs mb-1">Address</label>
@@ -213,32 +244,60 @@ export function SettingsScreen() {
               {activeTab === 'payments' && (
                 <div className="space-y-4">
                   <div className="bg-[#161B27] border border-[#1E2535] rounded-2xl p-6">
-                    <h3 className="text-[#F1F5F9] text-base font-semibold mb-4">Payment Integrations</h3>
-                    <p className="text-[#94A3B8] text-sm mb-6">Connect your payment providers to accept payments and process payroll</p>
-                    <div className="space-y-4">
-                      {payments.map((p) => (
-                        <div key={p.provider} className="flex items-center justify-between p-4 bg-[#0F1117] rounded-xl border border-[#1E2535]">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold" style={{ backgroundColor: providerColors[p.provider] || '#475569' }}>
-                              {p.provider[0].toUpperCase()}
-                            </div>
-                            <div>
-                              <p className="text-[#F1F5F9] text-sm font-medium capitalize">{p.provider}</p>
-                              <p className="text-[#475569] text-xs">{p.connected ? 'Connected' : 'Not connected'}</p>
-                            </div>
+                    <h3 className="text-[#F1F5F9] text-base font-semibold mb-1">Payment Integrations</h3>
+                    <p className="text-[#94A3B8] text-sm mb-6">Connect your bank account via Mono to sync transactions automatically.</p>
+
+                    {/* Mono Integration */}
+                    <div className="p-4 bg-[#0F1117] rounded-xl border border-[#1E2535] mb-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-11 h-11 rounded-xl bg-[#2563EB]/15 flex items-center justify-center">
+                            <span className="text-[#3B82F6] font-extrabold text-sm">M</span>
                           </div>
-                          <button
-                            onClick={() => handleTogglePayment(p.provider, p.connected)}
-                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${p.connected ? 'bg-[#00D084]/10 text-[#00D084] hover:bg-[#EF4444]/10 hover:text-[#EF4444]' : 'bg-[#1E2535] text-[#94A3B8] hover:bg-[#00D084]/10 hover:text-[#00D084]'}`}
-                          >
-                            {p.connected ? '✓ Connected' : 'Connect'}
-                          </button>
+                          <div>
+                            <p className="text-[#F1F5F9] text-sm font-semibold">Mono Bank Linking</p>
+                            <p className="text-[#475569] text-xs mt-0.5">Sync bank transactions automatically (GTB, Zenith, UBA, etc.)</p>
+                          </div>
                         </div>
-                      ))}
+                        <span className="flex items-center gap-1.5 bg-[#F59E0B]/10 text-[#F59E0B] text-[11px] font-bold px-3 py-1.5 rounded-full border border-[#F59E0B]/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]" />
+                          Not Live Yet
+                        </span>
+                      </div>
+                      <div className="mt-4 pt-4 border-t border-[#1E2535]">
+                        <p className="text-[#475569] text-xs leading-relaxed">
+                          Bank account linking via Mono is coming soon. Once enabled, transactions from your connected bank will automatically appear in your Bizhub dashboard.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Paystack — subscription payments only */}
+                    <div className="p-4 bg-[#0F1117] rounded-xl border border-[#1E2535]">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-11 h-11 rounded-xl bg-[#00C3F7]/10 flex items-center justify-center">
+                            <span className="text-[#00C3F7] font-extrabold text-sm">P</span>
+                          </div>
+                          <div>
+                            <p className="text-[#F1F5F9] text-sm font-semibold">Paystack</p>
+                            <p className="text-[#475569] text-xs mt-0.5">Used for subscription plan payments</p>
+                          </div>
+                        </div>
+                        <span className="flex items-center gap-1.5 bg-[#00D084]/10 text-[#00D084] text-[11px] font-bold px-3 py-1.5 rounded-full border border-[#00D084]/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#00D084]" />
+                          Active
+                        </span>
+                      </div>
+                      <div className="mt-4 pt-4 border-t border-[#1E2535]">
+                        <p className="text-[#475569] text-xs leading-relaxed">
+                          Paystack is used to process your Bizhub subscription payments securely. It is not used for business transactions.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
+
 
               {activeTab === 'security' && (
                 <div className="bg-[#161B27] border border-[#1E2535] rounded-2xl p-6">
@@ -249,16 +308,38 @@ export function SettingsScreen() {
                         <p className="text-[#F1F5F9] text-sm font-medium">Transaction PIN</p>
                         <p className="text-[#475569] text-xs">Default PIN: 1234 (used on Transactions page)</p>
                       </div>
-                      <button onClick={() => setShowPinModal(true)} className="px-4 py-2 bg-[#1E2535] text-[#94A3B8] rounded-xl text-sm hover:bg-[#2A3548]">Change PIN</button>
+                      <button 
+                        onClick={() => { setPinMode('change'); setShowPinModal(true); }} 
+                        disabled={user?.role !== 'OWNER'}
+                        className="px-4 py-2 bg-[#1E2535] text-[#94A3B8] rounded-xl text-sm hover:bg-[#2A3548] disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Change PIN
+                      </button>
                     </div>
+                    <div className="flex items-center justify-between p-4 bg-[#0F1117] rounded-xl border border-[#1E2535]">
+                      <div>
+                        <p className="text-[#F1F5F9] text-sm font-medium">Account Password</p>
+                        <p className="text-[#475569] text-xs">Update your login password</p>
+                      </div>
+                      <button 
+                        onClick={() => setShowPasswordModal(true)}
+                        className="px-4 py-2 bg-[#1E2535] text-[#94A3B8] rounded-xl text-sm hover:bg-[#2A3548]"
+                      >
+                        Change Password
+                      </button>
+                    </div>
+
                     <div className="flex items-center justify-between p-4 bg-[#0F1117] rounded-xl border border-[#1E2535]">
                       <div>
                         <p className="text-[#F1F5F9] text-sm font-medium">Two-Factor Authentication</p>
                         <p className="text-[#475569] text-xs">Add an extra layer of security</p>
                       </div>
-                      <button onClick={() => {
-                        toast({ title: 'Info', description: '2-Factor Authentication is coming soon!', status: 'info' });
-                      }} className="px-4 py-2 bg-[#1E2535] text-[#94A3B8] rounded-xl text-sm hover:bg-[#2A3548]">Enable</button>
+                      <button 
+                        onClick={handleToggle2FA}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${twoFactorEnabled ? 'bg-[#00D084]/10 text-[#00D084] hover:bg-[#EF4444]/10 hover:text-[#EF4444]' : 'bg-[#1E2535] text-[#94A3B8] hover:bg-[#00D084]/10 hover:text-[#00D084]'}`}
+                      >
+                        {twoFactorEnabled ? 'Enabled' : 'Enable'}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -414,7 +495,8 @@ export function SettingsScreen() {
         </div>
       </div>
 
-      {showPinModal && <PinSetupModal isOpen={showPinModal} onClose={() => setShowPinModal(false)} onComplete={() => setShowPinModal(false)} />}
+      {showPinModal && <PinSetupModal isOpen={showPinModal} mode={pinMode} onClose={() => setShowPinModal(false)} onComplete={() => setShowPinModal(false)} />}
+      {showPasswordModal && <ChangePasswordModal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} />}
     </div>
   );
 }

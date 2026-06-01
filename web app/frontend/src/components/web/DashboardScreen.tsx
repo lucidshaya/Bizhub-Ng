@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -9,18 +9,14 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Zap,
-  Eye,
-  Send,
-  FileText,
-  MoreHorizontal,
-  CheckCircle,
   AlertTriangle,
-  Info,
   Loader2,
   RefreshCw,
+  History,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { useQuery } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { socketService } from '../../services/socket';
 import type { WebScreen } from '../../pages/WebApp';
 import { dashboardApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -46,6 +42,21 @@ export function DashboardScreen({ onNavigate }: DashboardScreenProps) {
     staleTime: 1000 * 60, // 1 minute
   });
 
+  const queryClient = useQueryClient();
+  const [revenueMonth, setRevenueMonth] = useState<string>('All Time');
+  const [showExpensesHistory, setShowExpensesHistory] = useState(false);
+
+  useEffect(() => {
+    const socket = socketService.connect();
+    socket?.on('transaction:new', () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard_activity'] });
+    });
+    return () => {
+      socket?.off('transaction:new');
+    };
+  }, [queryClient]);
+
   const isLoading = sumLoading || actLoading;
   const error = sumError || actError;
 
@@ -63,6 +74,9 @@ export function DashboardScreen({ onNavigate }: DashboardScreenProps) {
     );
   }
 
+  const monthlyRevenueKeys = Object.keys(summary?.monthlyRevenue || {});
+  const displayRevenue = revenueMonth === 'All Time' ? (summary?.totalRevenue || 0) : (summary?.monthlyRevenue?.[revenueMonth] || 0);
+
   const stats = [
     {
       label: 'Wallet Balance',
@@ -74,11 +88,12 @@ export function DashboardScreen({ onNavigate }: DashboardScreenProps) {
     },
     {
       label: 'Revenue',
-      value: formatNaira(summary?.totalRevenue || 0),
+      value: formatNaira(displayRevenue),
       change: '+8.2%',
       up: true,
       icon: TrendingUp,
       color: '#3B82F6',
+      isRevenue: true,
     },
     {
       label: 'Expenses',
@@ -87,6 +102,7 @@ export function DashboardScreen({ onNavigate }: DashboardScreenProps) {
       up: false,
       icon: TrendingDown,
       color: '#EF4444',
+      isExpenses: true,
     },
     {
       label: 'Active Staff',
@@ -115,6 +131,15 @@ export function DashboardScreen({ onNavigate }: DashboardScreenProps) {
       {/* Welcome Banner */}
       <div className="relative overflow-hidden bg-gradient-to-br from-[var(--bg-secondary)] to-[var(--bg-tertiary)] border border-[var(--border-main)] rounded-2xl p-6 shadow-xl">
         <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--accent)]/5 rounded-full -mr-32 -mt-32 blur-3xl" />
+        <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+            <button 
+              onClick={() => { refetchSum(); queryClient.invalidateQueries({ queryKey: ['dashboard_activity'] }); }} 
+              className="flex items-center gap-2 bg-[var(--bg-primary)]/50 backdrop-blur border border-[var(--border-main)] hover:border-[var(--accent)] text-[var(--text-dim)] hover:text-[var(--accent)] px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm"
+              disabled={isLoading}
+            >
+                <RefreshCw size={14} className={isLoading ? "animate-spin text-[var(--accent)]" : ""} /> Refresh Data
+            </button>
+        </div>
         <div className="relative z-10">
           <h1 className="text-[var(--text-main)] text-2xl font-bold mb-1 flex items-center gap-2">
             Welcome back, {user?.fullName?.split(' ')[0] || 'Boss'} 👋
@@ -181,12 +206,60 @@ export function DashboardScreen({ onNavigate }: DashboardScreenProps) {
                   {stat.change}
                 </div>
               </div>
-              <p className="text-[var(--text-dim)] text-xs font-medium mb-1">{stat.label}</p>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[var(--text-dim)] text-xs font-medium">{stat.label}</p>
+                {stat.isRevenue && monthlyRevenueKeys.length > 0 && (
+                  <select 
+                    value={revenueMonth} 
+                    onChange={(e) => setRevenueMonth(e.target.value)}
+                    className="bg-[var(--bg-tertiary)] hover:bg-[var(--bg-primary)] border border-[var(--border-main)] rounded-md text-[10px] text-[var(--text-main)] font-semibold px-2 py-0.5 outline-none cursor-pointer transition-colors"
+                  >
+                    <option value="All Time">All Time</option>
+                    {monthlyRevenueKeys.map(k => <option key={k} value={k}>{k}</option>)}
+                  </select>
+                )}
+                {stat.isExpenses && (
+                  <button 
+                    onClick={() => setShowExpensesHistory(!showExpensesHistory)} 
+                    className={`p-1 rounded-md transition-colors ${showExpensesHistory ? 'bg-[#EF4444]/20 text-[#EF4444]' : 'bg-[var(--bg-tertiary)] text-[var(--text-dim)] hover:text-[#EF4444] border border-transparent'}`}
+                    title="View historical expenses"
+                  >
+                    <History size={12} />
+                  </button>
+                )}
+              </div>
               <p className="text-[var(--text-main)] text-2xl font-black tracking-tight">{stat.value}</p>
             </motion.div>
           );
         })}
       </div>
+
+      <AnimatePresence>
+        {showExpensesHistory && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border-main)] rounded-2xl p-5 shadow-inner">
+              <h4 className="text-[var(--text-main)] text-xs font-bold mb-3 flex items-center gap-2"><History size={14} className="text-[#EF4444]" /> Historical Expenses (Since Account Creation)</h4>
+              <div className="flex gap-3 overflow-x-auto app-scroll pb-2">
+                {Object.keys(summary?.monthlyExpenses || {}).length === 0 ? (
+                  <p className="text-[var(--text-dim)] text-xs">No historical expenses recorded yet.</p>
+                ) : (
+                  Object.keys(summary.monthlyExpenses).sort().map(month => (
+                    <div key={month} className="bg-[var(--bg-primary)] border border-[var(--border-main)] rounded-xl px-4 py-3 min-w-[140px] flex-shrink-0">
+                      <p className="text-[var(--text-dim)] text-[10px] uppercase font-bold mb-1">{month}</p>
+                      <p className="text-[#EF4444] text-sm font-black">{formatNaira(summary.monthlyExpenses[month])}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

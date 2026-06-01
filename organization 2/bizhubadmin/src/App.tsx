@@ -1,20 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { LayoutDashboard, Users, Building2, CreditCard, LogOut, Loader2, MessageSquare, Send, CheckCircle2, AlertCircle } from 'lucide-react';
 
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const handleLogin = (e: React.FormEvent) => {
+  useEffect(() => {
+    const err = searchParams.get('error');
+    if (err === 'forbidden') {
+      setError('Access denied. Administrator privileges required.');
+    } else if (err === 'expired') {
+      setError('Session expired. Please sign in again.');
+    }
+  }, [searchParams]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email === 'ivorilucid@gmail.com' && password === 'ugoreX52') {
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:3333/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Login failed');
+      }
+      localStorage.setItem('admin_token', data.token);
       localStorage.setItem('admin_auth', 'true');
       navigate('/dashboard');
-    } else {
-      setError('Invalid credentials');
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -39,6 +66,7 @@ function Login() {
               onChange={e => setEmail(e.target.value)}
               className="w-full bg-darkPrimary border border-darkBorder rounded-xl px-4 py-3 text-textMain focus:border-brand focus:outline-none"
               required
+              disabled={loading}
             />
           </div>
           <div>
@@ -49,10 +77,11 @@ function Login() {
               onChange={e => setPassword(e.target.value)}
               className="w-full bg-darkPrimary border border-darkBorder rounded-xl px-4 py-3 text-textMain focus:border-brand focus:outline-none"
               required
+              disabled={loading}
             />
           </div>
-          <button type="submit" className="w-full bg-brand hover:opacity-90 text-darkPrimary font-bold py-3 rounded-xl transition-opacity mt-4">
-            Sign In
+          <button type="submit" disabled={loading} className="w-full bg-brand hover:opacity-90 text-darkPrimary font-bold py-3 rounded-xl transition-opacity mt-4 flex items-center justify-center gap-2">
+            {loading ? <Loader2 className="animate-spin" size={18} /> : 'Sign In'}
           </button>
         </form>
       </div>
@@ -66,6 +95,16 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('users');
 
+  const handleLogout = (errType?: 'forbidden' | 'expired') => {
+    localStorage.removeItem('admin_auth');
+    localStorage.removeItem('admin_token');
+    if (errType) {
+      navigate(`/?error=${errType}`);
+    } else {
+      navigate('/');
+    }
+  };
+
   useEffect(() => {
     if (!localStorage.getItem('admin_auth')) {
       navigate('/');
@@ -76,7 +115,20 @@ function Dashboard() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch('http://localhost:3333/api/admin/superadmin/data');
+      const token = localStorage.getItem('admin_token');
+      const res = await fetch('http://localhost:3333/api/admin/superadmin/data', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (res.status === 403) {
+        handleLogout('forbidden');
+        return;
+      }
+      if (res.status === 401) {
+        handleLogout('expired');
+        return;
+      }
       const json = await res.json();
       setData(json);
     } catch (e) {
@@ -84,11 +136,6 @@ function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('admin_auth');
-    navigate('/');
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-brand" size={40} /></div>;

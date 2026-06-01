@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import {
   Search, Plus, DollarSign, Edit2, CheckSquare, Square,
-  X, UserX, Loader2, Trash2, Save, Check, CreditCard, RefreshCw
+  X, UserX, Loader2, Trash2, Save, Check, CreditCard, RefreshCw, Mail, SendHorizonal
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usePaystackPayment } from 'react-paystack';
-import { staffApi, authApi, settingsApi, dashboardApi } from '../../services/api';
+import { staffApi, authApi, settingsApi, dashboardApi, paymentsApi } from '../../services/api';
 import { useToast } from './Toast';
 
 export function StaffPayrollScreen() {
@@ -24,6 +24,8 @@ export function StaffPayrollScreen() {
   const [fundAmount, setFundAmount] = useState('');
   const [isFunding, setIsFunding] = useState(false);
   const [salaryInput, setSalaryInput] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
+  const [confirmPay, setConfirmPay] = useState<any | null>(null);
 
   const [newStaff, setNewStaff] = useState({
     name: '', email: '', phone: '', role: '', department: '',
@@ -45,6 +47,11 @@ export function StaffPayrollScreen() {
   const plan = profileData?.business?.plan || 'STARTER';
   const walletBalance = profileData?.business?.walletBalance || 0;
   const userEmail = profileData?.email || '';
+  const { data: banks = [] } = useQuery({
+    queryKey: ['banks'],
+    queryFn: () => paymentsApi.getBanks().then(res => res.data),
+    staleTime: 10 * 60 * 1000,
+  });
 
   // Mutations
   const createStaff = useMutation({
@@ -89,6 +96,17 @@ export function StaffPayrollScreen() {
     }
   });
 
+  const resendInviteMutation = useMutation({
+    mutationFn: (staffId: string) => staffApi.resendInvite(staffId),
+    onSuccess: (_res, staffId) => {
+      const staffMember = staffData.find((s: any) => s.id === staffId);
+      toast.success(`Invite resent to ${staffMember?.email || 'staff member'}`);
+    },
+    onError: (e: any) => {
+      toast.error(e?.response?.data?.message || 'Failed to resend invite');
+    }
+  });
+
   const handleCreate = async () => {
     if (!newStaff.name || !newStaff.role) {
       toast.warning('Name and role are required');
@@ -101,56 +119,96 @@ export function StaffPayrollScreen() {
 
     createStaff.mutate(newStaff, {
       onSuccess: async () => {
-        if (newStaff.email) {
+        setShowAddModal(false);
+        const staffName = newStaff.name;
+        const staffEmail = newStaff.email;
+        const staffRole = newStaff.role;
+        const staffPhone = newStaff.phone;
+
+        setNewStaff({ name: '', email: '', phone: '', role: '', department: '', bankName: '', accountNumber: '', monthlySalary: 0 });
+        setSalaryInput('');
+
+        if (staffEmail) {
           try {
             await authApi.inviteWorker({
-              name: newStaff.name,
-              email: newStaff.email,
-              role: newStaff.role,
-              phone: newStaff.phone || undefined,
+              name: staffName,
+              email: staffEmail,
+              role: staffRole,
+              phone: staffPhone || undefined,
             });
-            toast.success(`Staff added & invitation sent to ${newStaff.email}`);
+            toast.success(`Staff added & invitation sent to ${staffEmail}`);
           } catch {
             toast.info(`Staff added, invite failed.`);
           }
         } else {
-          toast.success(`${newStaff.name} added`);
+          toast.success(`${staffName} added successfully`);
         }
-        setShowAddModal(false);
-        setNewStaff({ name: '', email: '', phone: '', role: '', department: '', bankName: '', accountNumber: '', monthlySalary: 0 });
-        setSalaryInput('');
       },
       onError: (e: any) => {
-        toast.error(e?.response?.data?.message || 'Failed to add staff');
+        toast.error(e?.response?.data?.message || 'Failed to add staff member');
       }
     });
   };
 
   const handleUpdate = async () => {
     if (!editingStaff) return;
-    updateStaff.mutate({ id: editingStaff.id, data: editingStaff }, {
+    // Only send fields that exist in UpdateStaffDto — forbidNonWhitelisted is enabled on the backend
+    const payload = {
+      name: editingStaff.name,
+      email: editingStaff.email || undefined,
+      phone: editingStaff.phone || undefined,
+      role: editingStaff.role,
+      department: editingStaff.department || undefined,
+      bankName: editingStaff.bankName || undefined,
+      accountNumber: editingStaff.accountNumber || undefined,
+      monthlySalary: editingStaff.monthlySalary,
+      status: editingStaff.status,
+    };
+    updateStaff.mutate({ id: editingStaff.id, data: payload }, {
       onSuccess: () => {
-        toast.success('Staff updated');
         setShowEditModal(false);
         setEditingStaff(null);
+        toast.success('Staff profile updated successfully');
       },
-      onError: () => toast.error('Update failed')
+      onError: (e: any) => {
+        toast.error(e?.response?.data?.message || 'Update failed');
+      }
     });
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Remove this staff?')) return;
-    deleteStaff.mutate(id, {
-      onSuccess: () => toast.success('Staff removed'),
-      onError: () => toast.error('Remove failed')
+  const handleDelete = async (id: string, name: string) => {
+    setConfirmDelete({ id, name });
+  };
+
+  const confirmDoDelete = () => {
+    if (!confirmDelete) return;
+    deleteStaff.mutate(confirmDelete.id, {
+      onSuccess: () => {
+        toast.success(`${confirmDelete.name} has been removed from the team`);
+        setConfirmDelete(null);
+      },
+      onError: () => {
+        toast.error('Failed to remove staff member. Please try again.');
+        setConfirmDelete(null);
+      }
     });
   };
 
   const handlePayIndividual = async (s: any) => {
-    if (!confirm(`Pay ${s.name} ${formatPay(s.monthlySalary)}?`)) return;
-    payStaff.mutate(s.id, {
-      onSuccess: () => toast.success(`Paid ${s.name}`),
-      onError: () => toast.error('Payment failed')
+    setConfirmPay(s);
+  };
+
+  const confirmDoPay = () => {
+    if (!confirmPay) return;
+    payStaff.mutate(confirmPay.id, {
+      onSuccess: () => {
+        toast.success(`₦${confirmPay.monthlySalary?.toLocaleString('en-NG')} paid to ${confirmPay.name}`);
+        setConfirmPay(null);
+      },
+      onError: () => {
+        toast.error('Payment failed. Please check your wallet balance.');
+        setConfirmPay(null);
+      }
     });
   };
 
@@ -358,6 +416,7 @@ export function StaffPayrollScreen() {
                   <th className="py-4 px-4 text-[var(--text-dim)] text-[10px] uppercase font-black tracking-widest">Role & Dept</th>
                   <th className="py-4 px-4 text-[var(--text-dim)] text-[10px] uppercase font-black tracking-widest">Compensation</th>
                   <th className="py-4 px-4 text-[var(--text-dim)] text-[10px] uppercase font-black tracking-widest">Status</th>
+                  <th className="py-4 px-4 text-[var(--text-dim)] text-[10px] uppercase font-black tracking-widest">Invite</th>
                   <th className="py-4 px-4 text-[var(--text-dim)] text-[10px] uppercase font-black tracking-widest">Activity</th>
                   <th className="py-4 px-4 text-right"></th>
                 </tr>
@@ -399,6 +458,47 @@ export function StaffPayrollScreen() {
                       </span>
                     </td>
                     <td className="py-4 px-4">
+                      {s.email ? (
+                        s.inviteStatus === 'ACCEPTED' ? (
+                          <div className="flex items-center gap-1.5 text-[#00D084] font-black text-[10px] bg-[#00D084]/10 px-2 py-1 rounded-lg w-fit">
+                            <Check size={10} strokeWidth={3} /> Accepted
+                          </div>
+                        ) : s.inviteStatus === 'PENDING' ? (
+                          <div className="flex flex-col gap-1.5">
+                            <div className="flex items-center gap-1.5 text-[#F59E0B] font-black text-[10px] bg-[#F59E0B]/10 px-2 py-1 rounded-lg w-fit">
+                              <Mail size={10} /> Pending
+                            </div>
+                            <button
+                              onClick={() => resendInviteMutation.mutate(s.id)}
+                              disabled={resendInviteMutation.isPending && resendInviteMutation.variables === s.id}
+                              className="flex items-center gap-1 text-[9px] font-black text-amber-500 hover:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-0.5 rounded-md transition-all w-fit disabled:opacity-50"
+                            >
+                              {resendInviteMutation.isPending && resendInviteMutation.variables === s.id
+                                ? <Loader2 size={9} className="animate-spin" />
+                                : <SendHorizonal size={9} />}
+                              Resend Invite
+                            </button>
+                          </div>
+                        ) : (
+                          // No invite sent yet — show a quick send button
+                          s.email ? (
+                            <button
+                              onClick={() => resendInviteMutation.mutate(s.id)}
+                              disabled={resendInviteMutation.isPending && resendInviteMutation.variables === s.id}
+                              className="flex items-center gap-1 text-[9px] font-black text-[var(--text-dim)] hover:text-amber-400 bg-[var(--bg-tertiary)] hover:bg-amber-500/10 px-2 py-1 rounded-lg transition-all w-fit disabled:opacity-50 border border-[var(--border-main)] hover:border-amber-500/30"
+                            >
+                              {resendInviteMutation.isPending && resendInviteMutation.variables === s.id
+                                ? <Loader2 size={9} className="animate-spin" />
+                                : <SendHorizonal size={9} />}
+                              Send Invite
+                            </button>
+                          ) : <span className="text-[var(--text-dim)] text-[10px] opacity-40">—</span>
+                        )
+                      ) : (
+                        <span className="text-[var(--text-dim)] text-[10px] opacity-40">No email</span>
+                      )}
+                    </td>
+                    <td className="py-4 px-4">
                       {paidStaffIds.has(s.id) ? (
                         <div className="flex items-center gap-1.5 text-[#00D084] font-black text-[10px] bg-[#00D084]/10 px-2 py-1 rounded-lg w-fit">
                           <Check size={12} strokeWidth={3} /> SETTLED
@@ -419,12 +519,12 @@ export function StaffPayrollScreen() {
                         <button
                           onClick={() => { setEditingStaff({ ...s }); setShowEditModal(true); }}
                           className="p-2 hover:bg-blue-500/10 rounded-xl text-blue-500 transition-all"
-                          title="Edit Personal"
+                          title="Edit Profile"
                         >
                           <Edit2 size={16} />
                         </button>
                         <button
-                          onClick={() => handleDelete(s.id)}
+                          onClick={() => handleDelete(s.id, s.name)}
                           className="p-2 hover:bg-red-500/10 rounded-xl text-red-500 transition-all"
                           title="Remove from Team"
                         >
@@ -508,7 +608,16 @@ export function StaffPayrollScreen() {
               <div className="grid grid-cols-2 gap-4 mb-8">
                 <div>
                   <label className="block text-[var(--text-dim)] text-[10px] uppercase font-black mb-1.5 ml-1">Bank Name</label>
-                  <input value={newStaff.bankName} onChange={(e) => setNewStaff({ ...newStaff, bankName: e.target.value })} className={inputClass} placeholder="Access Bank" />
+                  <select 
+                    value={newStaff.bankName} 
+                    onChange={(e) => setNewStaff({ ...newStaff, bankName: e.target.value })} 
+                    className={inputClass}
+                  >
+                    <option value="">Select Bank</option>
+                    {banks.map((b: any) => (
+                      <option key={`${b.code}-${b.name}`} value={b.name}>{b.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-[var(--text-dim)] text-[10px] uppercase font-black mb-1.5 ml-1">Account Number</label>
@@ -577,6 +686,30 @@ export function StaffPayrollScreen() {
                     <option value="ON_LEAVE">On Leave</option>
                     <option value="SUSPENDED">Suspended</option>
                   </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[var(--text-dim)] text-[10px] uppercase font-black mb-1.5 ml-1">Bank Name</label>
+                    <select 
+                      value={editingStaff.bankName || ''} 
+                      onChange={(e) => setEditingStaff({ ...editingStaff, bankName: e.target.value })} 
+                      className={inputClass}
+                    >
+                      <option value="">Select Bank</option>
+                      {banks.map((b: any) => (
+                        <option key={`${b.code}-${b.name}`} value={b.name}>{b.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[var(--text-dim)] text-[10px] uppercase font-black mb-1.5 ml-1">Account Number</label>
+                    <input 
+                      value={editingStaff.accountNumber || ''} 
+                      onChange={(e) => setEditingStaff({ ...editingStaff, accountNumber: e.target.value })} 
+                      className={inputClass}
+                      placeholder="0123456789"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -704,6 +837,88 @@ export function StaffPayrollScreen() {
               >
                 {isFunding ? <Loader2 size={18} className="animate-spin" /> : <span>Initialize Payment</span>}
               </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {confirmDelete && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.92, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, opacity: 0 }}
+              transition={{ type: 'spring', damping: 22, stiffness: 300 }}
+              className="bg-[#0D1117] border border-[#EF4444]/20 rounded-3xl p-8 w-full max-w-sm shadow-2xl shadow-black/50"
+            >
+              <div className="flex flex-col items-center text-center">
+                <div className="w-16 h-16 rounded-2xl bg-[#EF4444]/10 border border-[#EF4444]/20 flex items-center justify-center mb-5">
+                  <Trash2 size={28} className="text-[#EF4444]" />
+                </div>
+                <h3 className="text-[var(--text-main)] text-lg font-black mb-2">Remove Team Member</h3>
+                <p className="text-[var(--text-dim)] text-sm leading-relaxed">
+                  You are about to permanently remove <span className="text-[var(--text-main)] font-bold">{confirmDelete.name}</span> from your team. This action cannot be undone.
+                </p>
+              </div>
+              <div className="flex gap-3 mt-8">
+                <button
+                  onClick={() => setConfirmDelete(null)}
+                  className="flex-1 py-3.5 rounded-2xl border border-[var(--border-main)] text-[var(--text-dim)] font-bold text-sm hover:bg-[var(--bg-tertiary)] transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDoDelete}
+                  disabled={deleteStaff.isPending}
+                  className="flex-1 py-3.5 rounded-2xl bg-[#EF4444] text-white font-black text-sm hover:bg-[#DC2626] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#EF4444]/20"
+                >
+                  {deleteStaff.isPending ? <Loader2 size={16} className="animate-spin" /> : <><Trash2 size={16} /> Remove</>}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Pay Individual Confirmation Modal */}
+      <AnimatePresence>
+        {confirmPay && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.92, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, opacity: 0 }}
+              transition={{ type: 'spring', damping: 22, stiffness: 300 }}
+              className="bg-[#0D1117] border border-[#00D084]/20 rounded-3xl p-8 w-full max-w-sm shadow-2xl shadow-black/50"
+            >
+              <div className="flex flex-col items-center text-center">
+                <div className="w-16 h-16 rounded-2xl bg-[#00D084]/10 border border-[#00D084]/20 flex items-center justify-center mb-5">
+                  <DollarSign size={28} className="text-[#00D084]" />
+                </div>
+                <h3 className="text-[var(--text-main)] text-lg font-black mb-2">Confirm Salary Payment</h3>
+                <p className="text-[var(--text-dim)] text-sm leading-relaxed">
+                  Pay monthly salary of <span className="text-[#00D084] font-black text-base">₦{confirmPay.monthlySalary?.toLocaleString('en-NG')}</span> to <span className="text-[var(--text-main)] font-bold">{confirmPay.name}</span>?
+                </p>
+                <p className="text-[var(--text-dim)] text-xs mt-2 opacity-60">Funds will be deducted from your Bizhub Wallet</p>
+              </div>
+              <div className="flex gap-3 mt-8">
+                <button
+                  onClick={() => setConfirmPay(null)}
+                  className="flex-1 py-3.5 rounded-2xl border border-[var(--border-main)] text-[var(--text-dim)] font-bold text-sm hover:bg-[var(--bg-tertiary)] transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDoPay}
+                  disabled={payStaff.isPending}
+                  className="flex-1 py-3.5 rounded-2xl bg-[#00D084] text-[#0A0E1A] font-black text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#00D084]/20"
+                >
+                  {payStaff.isPending ? <Loader2 size={16} className="animate-spin" /> : <><DollarSign size={16} /> Pay Now</>}
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

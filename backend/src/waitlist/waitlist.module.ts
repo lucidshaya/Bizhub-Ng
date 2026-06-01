@@ -4,8 +4,8 @@ import { WaitlistService } from './waitlist.service';
 import { EmailModule } from '../email/email.module';
 
 @Module({
-    imports: [EmailModule],
-    controllers: [WaitlistController],
-    providers: [WaitlistService],
+  imports: [EmailModule],
+  controllers: [WaitlistController],
+  providers: [WaitlistService],
 })
-export class WaitlistModule { }
+export class WaitlistModule {}

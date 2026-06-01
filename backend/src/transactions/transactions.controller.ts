@@ -1,72 +1,93 @@
 import {
-    Controller,
-    Get,
-    Post,
-    Delete,
-    Body,
-    Param,
-    Query,
-    UseGuards,
-    Request,
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
-import { CreateTransactionDto, TransactionFilterDto } from './dto/transaction.dto';
+import {
+  CreateTransactionDto,
+  TransactionFilterDto,
+  SyncTransactionDto,
+} from './dto/transaction.dto';
+import { SyncService } from './sync.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { SubscriptionGuard } from '../auth/guards/subscription.guard';
 import { PrismaService } from '../prisma/prisma.service';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SubscriptionGuard)
 @Controller('transactions')
 export class TransactionsController {
-    constructor(
-        private txnService: TransactionsService,
-        private prisma: PrismaService,
-    ) { }
+  constructor(
+    private txnService: TransactionsService,
+    private syncService: SyncService,
+    private prisma: PrismaService,
+  ) {}
 
-    private async getBusinessId(userId: string): Promise<string> {
-        const user = await this.prisma.user.findUnique({ where: { id: userId } });
-        if (!user?.businessId) throw new Error('No business found for user');
-        return user.businessId;
-    }
+  private async getBusinessId(userId: string): Promise<string> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user?.businessId) throw new Error('No business found for user');
+    return user.businessId;
+  }
 
-    @Get()
-    async findAll(@Request() req: any, @Query() filters: TransactionFilterDto) {
-        const businessId = await this.getBusinessId(req.user.sub);
-        return this.txnService.findAll(businessId, filters);
-    }
+  @Get()
+  async findAll(@Request() req: any, @Query() filters: TransactionFilterDto) {
+    const businessId = await this.getBusinessId(req.user.sub);
+    return this.txnService.findAll(businessId, filters);
+  }
 
-    @Get('summary')
-    async getSummary(@Request() req: any) {
-        const businessId = await this.getBusinessId(req.user.sub);
-        return this.txnService.getSummary(businessId);
-    }
+  @Get('summary')
+  async getSummary(@Request() req: any) {
+    const businessId = await this.getBusinessId(req.user.sub);
+    return this.txnService.getSummary(businessId);
+  }
 
-    @Get('export')
-    async getExport(@Request() req: any, @Query() filters: TransactionFilterDto) {
-        const businessId = await this.getBusinessId(req.user.sub);
-        return this.txnService.getExportData(businessId, filters);
-    }
+  @Get('export')
+  async getExport(@Request() req: any, @Query() filters: TransactionFilterDto) {
+    const businessId = await this.getBusinessId(req.user.sub);
+    return this.txnService.getExportData(businessId, filters);
+  }
 
-    @Get(':id')
-    async findOne(@Param('id') id: string, @Request() req: any) {
-        const businessId = await this.getBusinessId(req.user.sub);
-        return this.txnService.findOne(id, businessId);
-    }
+  @Get(':id')
+  async findOne(@Param('id') id: string, @Request() req: any) {
+    const businessId = await this.getBusinessId(req.user.sub);
+    return this.txnService.findOne(id, businessId);
+  }
 
-    @Post()
-    async create(@Body() dto: CreateTransactionDto, @Request() req: any) {
-        const businessId = await this.getBusinessId(req.user.sub);
-        return this.txnService.create(businessId, dto);
-    }
+  @Post()
+  async create(@Body() dto: CreateTransactionDto, @Request() req: any) {
+    const businessId = await this.getBusinessId(req.user.sub);
+    return this.txnService.create(businessId, dto);
+  }
 
-    @Post('sync')
-    async sync(@Request() req: any) {
-        const businessId = await this.getBusinessId(req.user.sub);
-        return this.txnService.syncTransactions(businessId);
-    }
+  @Post('sms-sync')
+  async smsSync(@Body() dto: SyncTransactionDto, @Request() req: any) {
+    const businessId = await this.getBusinessId(req.user.sub);
+    return this.syncService.processTransaction(businessId, {
+      amount: dto.amount,
+      type: dto.type as any,
+      description: dto.description,
+      channel: dto.channel,
+      occurredAt: dto.occurredAt ? new Date(dto.occurredAt) : undefined,
+      source: 'SMS',
+      externalId: dto.externalId,
+    });
+  }
 
-    @Delete(':id')
-    async delete(@Param('id') id: string, @Request() req: any) {
-        const businessId = await this.getBusinessId(req.user.sub);
-        return this.txnService.delete(id, businessId);
-    }
+  @Post('sync')
+  async sync(@Request() req: any) {
+    const businessId = await this.getBusinessId(req.user.sub);
+    return this.txnService.syncTransactions(businessId);
+  }
+
+  @Delete(':id')
+  async delete(@Param('id') id: string, @Request() req: any) {
+    const businessId = await this.getBusinessId(req.user.sub);
+    return this.txnService.delete(id, businessId);
+  }
 }

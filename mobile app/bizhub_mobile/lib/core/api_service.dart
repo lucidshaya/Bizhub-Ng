@@ -154,7 +154,7 @@ class ApiService {
     return await post('/staff/pay', {
       'staffId': staffId,
       'amount': amount,
-      'reason': ?reason,
+      if (reason != null) 'reason': reason,
     });
   }
 
@@ -163,8 +163,8 @@ class ApiService {
     String? reason,
   }) async {
     return await post('/staff/pay-all', {
-      'staffIds': ?staffIds,
-      'reason': ?reason,
+      if (staffIds != null) 'staffIds': staffIds,
+      if (reason != null) 'reason': reason,
     });
   }
 
@@ -173,6 +173,7 @@ class ApiService {
   static Future<Map<String, dynamic>> getTransactions({
     String? type,
     String? search,
+    String? channel,
     int page = 1,
     int limit = 20,
   }) async {
@@ -181,8 +182,9 @@ class ApiService {
       params: {
         'page': page.toString(),
         'limit': limit.toString(),
-        'type': ?type,
-        'search': ?search,
+        if (type != null) 'type': type,
+        if (search != null) 'search': search,
+        if (channel != null) 'channel': channel,
       },
     );
   }
@@ -195,6 +197,20 @@ class ApiService {
     Map<String, dynamic> data,
   ) async {
     return await post('/transactions', data);
+  }
+
+  static Future<void> deleteTransaction(String id) async {
+    await delete('/transactions/$id');
+  }
+
+  static Future<Map<String, dynamic>> syncTransactions() async {
+    return await post('/transactions/sync', {});
+  }
+
+  static Future<Map<String, dynamic>> getExportTransactions({String? type}) async {
+    return await get('/transactions/export', params: {
+      if (type != null && type.isNotEmpty) 'type': type
+    });
   }
 
   // ─── CAMERAS ──────────────────────────────────────────
@@ -266,6 +282,10 @@ class ApiService {
 
   static Future<Map<String, dynamic>> upgradePlan(String plan) async {
     return await post('/settings/wallet/upgrade-plan', {'plan': plan});
+  }
+
+  static Future<Map<String, dynamic>> upgradePlanPaystack(String plan, bool isYearly) async {
+    return await post('/settings/wallet/upgrade-plan-paystack', {'plan': plan, 'isYearly': isYearly});
   }
 
   // ─── SUPPORT ──────────────────────────────────────────

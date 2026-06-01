@@ -3,7 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
+  url = env("DATABASE_URL")
 }
 
 // ─── USERS & AUTH ───────────────────────────────────────────
@@ -21,9 +22,12 @@ model User {
   business       Business?     @relation(fields: [businessId], references: [id], onDelete: Cascade)
   inviteToken    String?       @unique @map("invite_token")
   inviteStatus   String?       @map("invite_status") // PENDING, ACCEPTED
-  pinHash        String?       @map("pin_hash")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
+  pinHash          String?       @map("pin_hash")
+  twoFactorEnabled Boolean       @default(false) @map("two_factor_enabled")
+  twoFactorSecret  String?       @map("two_factor_secret")
+  emailNotifications Boolean     @default(true) @map("email_notifications")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
 
   sentMessages     ChatMessage[] @relation("SentMessages")
   chatMemberships  ChatMember[]
@@ -35,6 +39,7 @@ model User {
 enum UserRole {
   OWNER
   ADMIN
+  SUBADMIN
   WORKER
   VIEWER
   STAFF
@@ -52,7 +57,9 @@ model Business {
   phone       String?
   email       String?
   logoUrl     String?      @map("logo_url")
-  plan                 BusinessPlan @default(BASIC)
+  plan        BusinessPlan @default(BASIC)
+  storeMode   StoreMode    @default(WORKSPACE) @map("store_mode")
+  trialActivated Boolean   @default(false) @map("trial_activated")
   planExpiryDate       DateTime?    @map("plan_expiry_date")
   currency             String       @default("NGN")
   departments          String[]     @default([])
@@ -61,6 +68,7 @@ model Business {
   walletBalance        Float        @default(0) @map("wallet_balance")
   virtualAccountNumber String?      @map("virtual_account_number")
   virtualAccountBank   String?      @map("virtual_account_bank")
+  monoAccountId        String?      @unique @map("mono_account_id")
   createdAt            DateTime     @default(now()) @map("created_at")
   updatedAt            DateTime     @updatedAt @map("updated_at")
 
@@ -73,6 +81,8 @@ model Business {
   payrollRuns  PayrollRun[]
   smsLogs      SmsLog[]
   paymentIntegrations PaymentIntegration[]
+  products     Product[]      @relation("RetailProducts")
+  sales        Sale[]         @relation("RetailSales")
 
   @@map("businesses")
 }
@@ -84,6 +94,11 @@ enum BusinessPlan {
   STARTER
   GROWTH
   SCALE
+}
+
+enum StoreMode {
+  WORKSPACE
+  RETAIL_STORE
 }
 
 // ─── STAFF ──────────────────────────────────────────────────
@@ -132,17 +147,27 @@ enum InviteStatus {
 model Transaction {
   id          String            @id @default(uuid())
   type        TransactionType
+  source      TransactionSource @default(MANUAL)
   description String
   amount      Float
   channel     String?           // "Bank Transfer", "Paystack", "Moniepoint", etc.
+  fingerprint String?           @unique
   status      TransactionStatus @default(PENDING)
   reference   String?           @unique
+  occurredAt  DateTime?         @map("occurred_at")
   date        DateTime          @default(now())
   businessId  String            @map("business_id")
   business    Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
   createdAt   DateTime          @default(now()) @map("created_at")
 
   @@map("transactions")
+}
+
+enum TransactionSource {
+  SMS
+  MONO
+  PAYSTACK
+  MANUAL
 }
 
 enum TransactionType {
@@ -337,6 +362,7 @@ model SupportTicket {
   userEmail   String            @map("user_email")
   subject     String
   message     String
+  imageUrl    String?           @map("image_url")
   status      String            @default("OPEN") // OPEN, CLOSED, RESOLVED
   createdAt   DateTime          @default(now()) @map("created_at")
   updatedAt   DateTime          @updatedAt @map("updated_at")
@@ -354,4 +380,78 @@ model SupportResponse {
   createdAt DateTime      @default(now()) @map("created_at")
 
   @@map("support_responses")
+}
+// ─── RETAIL / POS ─────────────────────────────────────
+
+model Product {
+  id                 String         @id @default(uuid())
+  name               String
+  sku                String?        @unique
+  barcode            String?        @unique
+  category           String?
+  sellingPrice       Int            @default(0) @map("selling_price")  // kobo
+  costPrice          Int            @default(0) @map("cost_price")      // kobo
+  quantity           Int            @default(0)
+  lowStockThreshold  Int            @default(5) @map("low_stock_threshold")
+  unit               String         @default("piece") // piece, kg, litre, carton
+  businessId         String         @map("business_id")
+  business           Business       @relation("RetailProducts", fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  saleItems    SaleItem[]
+  stockMovements StockMovement[]
+
+  @@map("products")
+}
+
+model Sale {
+  id            String      @id @default(uuid())
+  total         Int         // kobo
+  subtotal      Int         // kobo
+  discount      Int         @default(0) // kobo
+  discountType  String      @default("fixed") // "fixed" or "percentage"
+  paymentMethod String      // "cash", "card", "transfer"
+  cashierId     String?     @map("cashier_id")
+  businessId    String      @map("business_id")
+  business      Business    @relation("RetailSales", fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  items         SaleItem[]
+
+  @@map("sales")
+}
+
+model SaleItem {
+  id         String   @id @default(uuid())
+  saleId     String   @map("sale_id")
+  sale       Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId  String   @map("product_id")
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  name       String   // snapshot of product name at time of sale
+  quantity   Int
+  unitPrice  Int      @map("unit_price") // kobo
+  subtotal   Int      // kobo
+
+  @@map("sale_items")
+}
+
+model StockMovement {
+  id            String              @id @default(uuid())
+  productId     String              @map("product_id")
+  product       Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type          StockMovementType
+  quantityDelta Int                 @map("quantity_delta") // positive = stock added, negative = stock removed
+  reason        String?
+  businessId    String              @map("business_id")
+  createdAt     DateTime            @default(now()) @map("created_at")
+
+  @@map("stock_movements")
+}
+
+enum StockMovementType {
+  SALE
+  RESTOCK
+  ADJUSTMENT
+  DAMAGED
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
@@ -48,13 +48,17 @@ export function AdminDashboard() {
     const [stats, setStats] = useState<PlatformStats | null>(null);
     const [users, setUsers] = useState<{ data: UserRow[]; total: number; totalPages: number }>({ data: [], total: 0, totalPages: 1 });
     const [activity, setActivity] = useState<Activity[]>([]);
-    const [supportMetrics, setSupportMetrics] = useState<any>(null);
+    interface SupportMetrics {
+        totalRooms: number;
+        totalMessages: number;
+        todayMessages: number;
+    }
+    const [supportMetrics, setSupportMetrics] = useState<SupportMetrics | null>(null);
     const [loading, setLoading] = useState(true);
     const [userPage, setUserPage] = useState(1);
     const [userSearch, setUserSearch] = useState('');
     const [userFilter, setUserFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
 
-    // Auth check
     useEffect(() => {
         const admin = localStorage.getItem('bizhub_admin');
         if (!admin) { navigate('/admin'); return; }
@@ -66,10 +70,7 @@ export function AdminDashboard() {
         return { Authorization: `Bearer ${token}` };
     };
 
-    useEffect(() => { loadAll(); }, []);
-    useEffect(() => { loadUsers(); }, [userPage, userSearch]);
-
-    async function loadAll() {
+    const loadAll = useCallback(async () => {
         setLoading(true);
         try {
             const [statsRes, usersRes, actRes, supRes] = await Promise.all([
@@ -82,19 +83,26 @@ export function AdminDashboard() {
             setUsers(usersRes.data);
             setActivity(actRes.data);
             setSupportMetrics(supRes.data);
-        } catch { }
+        } catch (err) {
+            console.error('Failed to load admin data:', err);
+        }
         setLoading(false);
-    }
+    }, []);
 
-    async function loadUsers() {
+    const loadUsers = useCallback(async () => {
         try {
             const res = await axios.get(`${API}/admin/users`, {
                 headers: headers(),
                 params: { page: userPage, limit: 20, search: userSearch || undefined },
             });
             setUsers(res.data);
-        } catch { }
-    }
+        } catch (err) {
+            console.error('Failed to load users:', err);
+        }
+    }, [userPage, userSearch]);
+
+    useEffect(() => { loadAll(); }, [loadAll]);
+    useEffect(() => { loadUsers(); }, [userPage, userSearch, loadUsers]);
 
     const logout = () => {
         localStorage.removeItem('bizhub_admin');
@@ -417,7 +425,7 @@ function ActivityTab({ activity, fmtDate, fmtTime }: { activity: Activity[]; fmt
 
 // ─── SUPPORT TAB ────────────────────────────────────────
 
-function SupportTab({ metrics }: { metrics: any }) {
+function SupportTab({ metrics }: { metrics: SupportMetrics | null }) {
     return (
         <div>
             {/* Metrics */}

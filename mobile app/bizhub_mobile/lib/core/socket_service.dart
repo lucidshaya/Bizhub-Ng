@@ -9,12 +9,14 @@ class SocketService {
 
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
+    final businessId = prefs.getString('business_id') ?? '';
 
     _socket = IO.io(
-      'http://localhost:3333',
+      'http://localhost:3333/transactions',
       IO.OptionBuilder()
           .setTransports(['websocket'])
           .setAuth({'token': token})
+          .setQuery({'businessId': businessId})
           .disableAutoConnect()
           .build(),
     );

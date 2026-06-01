@@ -11,6 +11,9 @@ interface User {
     businessId?: string;
     businessName?: string;
     businessType?: string;
+    businessPlan?: string;
+    storeMode?: 'WORKSPACE' | 'RETAIL_STORE';
+    trialActivated?: boolean;
     hasPin?: boolean;
 }
 
@@ -105,6 +108,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             businessId: backendUser?.businessId,
                             businessName: backendUser?.businessName,
                             businessType: backendUser?.businessType,
+                            businessPlan: backendUser?.businessPlan,
+                            storeMode: backendUser?.storeMode,
                         };
 
                         saveAuth(appUser, session.access_token);

@@ -11,11 +11,13 @@ import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { WebApp } from './pages/WebApp';
+import { RetailApp } from './pages/RetailApp';
 import { AdminLoginPage } from './pages/AdminLoginPage';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { AuthCallbackPage } from './pages/AuthCallbackPage';
 import { AcceptInvitePage } from './pages/AcceptInvitePage';
 import { ResetPinPage } from './pages/ResetPinPage';
+import { SubscriptionFlow } from './pages/SubscriptionFlow';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -36,7 +38,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   if (isLoading) {
     return (
@@ -47,7 +49,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={user?.storeMode === 'RETAIL_STORE' ? '/retail' : '/dashboard'} replace />;
   }
 
   return <>{children}</>;
@@ -97,12 +99,30 @@ export function App() {
                 {/* Reset PIN via email */}
                 <Route path="/reset-pin" element={<ResetPinPage />} />
 
+                {/* Subscription / Onboarding flow */}
+                <Route
+                  path="/onboarding"
+                  element={
+                    <ProtectedRoute>
+                      <SubscriptionFlow />
+                    </ProtectedRoute>
+                  }
+                />
+
                 {/* Protected routes */}
                 <Route
                   path="/dashboard"
                   element={
                     <ProtectedRoute>
                       <WebApp />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/retail"
+                  element={
+                    <ProtectedRoute>
+                      <RetailApp />
                     </ProtectedRoute>
                   }
                 />

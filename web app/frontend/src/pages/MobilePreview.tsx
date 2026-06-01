@@ -156,7 +156,7 @@ export function MobilePreview() {
                     className="absolute bottom-14 right-0 flex flex-col gap-2 items-end"
                   >
                     {[
-                      { label: 'New Message', icon: MessageSquare, color: '#8B5CF6', action: () => { } },
+                      { label: 'New Message', icon: MessageSquare, color: '#8B5CF6', action: () => { console.log('New Message clicked'); } },
                       { label: 'Add Staff', icon: UserPlus, color: '#3B82F6', action: () => setActiveTab('addStaff') },
                       { label: 'Generate Invoice', icon: FileText, color: '#F59E0B', action: () => setActiveTab('generateInvoice') },
                     ].map((action) => {

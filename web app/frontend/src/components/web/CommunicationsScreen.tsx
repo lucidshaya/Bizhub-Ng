@@ -1,15 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Search, Send, Smile, Paperclip, Phone, Video, MoreHorizontal, Plus, X, Loader2, Users, MessageSquare, Mail, Check
+  Search, Send, Loader2, MessageSquare, Mail, Check
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { chatApi, emailApi, staffApi } from '../../services/api';
 import { socketService } from '../../services/socket';
-import { useAuth } from '../../context/AuthContext';
 import { useToast } from './Toast';
 
 export function CommunicationsScreen() {
-  const { user } = useAuth();
   const toast = useToast();
 
   // Tabs
@@ -19,6 +16,7 @@ export function CommunicationsScreen() {
   const [rooms, setRooms] = useState<any[]>([]);
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
+  const [messageCache, setMessageCache] = useState<Record<string, any[]>>({});
   const [chatUsers, setChatUsers] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -45,14 +43,26 @@ export function CommunicationsScreen() {
     const socket = socketService.connect();
 
     const handleNewMessage = (data: { roomId: string, message: any }) => {
+      setMessageCache(prev => {
+        const roomHistory = prev[data.roomId] || [];
+        if (roomHistory.find(m => m.id === data.message.id)) return prev;
+        return { ...prev, [data.roomId]: [...roomHistory, data.message] };
+      });
+
       if (data.roomId === activeRoom) {
         setMessages(prev => {
-          // Avoid duplicates
           if (prev.find(m => m.id === data.message.id)) return prev;
           return [...prev, data.message];
         });
       }
-      loadRooms(); // Refresh sidebar last message
+      
+      // Update room list locally instead of API call
+      setRooms(prevRooms => prevRooms.map(room => {
+        if (room.id === data.roomId) {
+          return { ...room, lastMessage: data.message };
+        }
+        return room;
+      }));
     };
 
     socket?.on('new_message', handleNewMessage);
@@ -64,6 +74,11 @@ export function CommunicationsScreen() {
 
   useEffect(() => {
     if (activeRoom) {
+      if (messageCache[activeRoom]) {
+        setMessages(messageCache[activeRoom]);
+      } else {
+        setMessages([]);
+      }
       loadMessages(activeRoom);
       socketService.getSocket()?.emit('join_room', { roomId: activeRoom });
     }
@@ -89,6 +104,7 @@ export function CommunicationsScreen() {
     try {
       const res = await chatApi.getMessages(roomId);
       setMessages(res.data);
+      setMessageCache(prev => ({ ...prev, [roomId]: res.data }));
     } catch { }
   };
 
@@ -101,11 +117,28 @@ export function CommunicationsScreen() {
 
   const handleSend = async () => {
     if (!newMessage.trim() || !activeRoom) return;
+    
+    // Optimistic UI Update
+    const tempId = `temp-${Date.now()}`;
+    const text = newMessage.trim();
+    const tempMsg = {
+        id: tempId,
+        text: text,
+        senderId: 'me',
+        senderName: 'Me',
+        sentAt: new Date().toISOString(),
+        isMine: true
+    };
+    
+    setMessages(prev => [...prev, tempMsg]);
+    setNewMessage('');
     setIsSending(true);
+    
     try {
-      await chatApi.sendMessage(activeRoom, newMessage.trim());
-      setNewMessage('');
-    } catch { } finally { setIsSending(false); }
+      await chatApi.sendMessage(activeRoom, text);
+    } catch { 
+        toast.error("Failed to send message");
+    } finally { setIsSending(false); }
   };
 
   const handleUserClick = async (userId: string) => {

@@ -8,15 +8,23 @@ interface PinSetupModalProps {
     isOpen: boolean;
     onComplete: () => void;
     onClose?: () => void;
+    mode?: 'setup' | 'change';
 }
 
-export function PinSetupModal({ isOpen, onComplete, onClose }: PinSetupModalProps) {
+export function PinSetupModal({ isOpen, onComplete, onClose, mode = 'setup' }: PinSetupModalProps) {
     const toast = useToast();
-    const [step, setStep] = useState<'enter' | 'confirm'>('enter');
+    const [step, setStep] = useState<'old' | 'enter' | 'confirm'>(mode === 'change' ? 'old' : 'enter');
+    const [oldPin, setOldPin] = useState(['', '', '', '']);
     const [pin, setPin] = useState(['', '', '', '']);
     const [confirmPin, setConfirmPin] = useState(['', '', '', '']);
     const [error, setError] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const oldRefs = [
+        useRef<HTMLInputElement>(null),
+        useRef<HTMLInputElement>(null),
+        useRef<HTMLInputElement>(null),
+        useRef<HTMLInputElement>(null),
+    ];
     const inputRefs = [
         useRef<HTMLInputElement>(null),
         useRef<HTMLInputElement>(null),
@@ -31,8 +39,10 @@ export function PinSetupModal({ isOpen, onComplete, onClose }: PinSetupModalProp
     ];
 
     useEffect(() => {
-        if (isOpen && step === 'enter') {
-            setTimeout(() => inputRefs[0].current?.focus(), 100);
+        if (isOpen) {
+            if (step === 'old') setTimeout(() => oldRefs[0].current?.focus(), 100);
+            if (step === 'enter') setTimeout(() => inputRefs[0].current?.focus(), 100);
+            if (step === 'confirm') setTimeout(() => confirmRefs[0].current?.focus(), 100);
         }
     }, [isOpen, step]);
 
@@ -70,13 +80,21 @@ export function PinSetupModal({ isOpen, onComplete, onClose }: PinSetupModalProp
     };
 
     const handleContinue = () => {
+        if (step === 'old') {
+            if (oldPin.join('').length !== 4) {
+                setError('Enter 4-digit old PIN');
+                return;
+            }
+            setStep('enter');
+            return;
+        }
+
         const pinStr = pin.join('');
         if (pinStr.length !== 4) {
             setError('Enter all 4 digits');
             return;
         }
         setStep('confirm');
-        setTimeout(() => confirmRefs[0].current?.focus(), 100);
     };
 
     const handleSubmit = async () => {
@@ -96,11 +114,16 @@ export function PinSetupModal({ isOpen, onComplete, onClose }: PinSetupModalProp
 
         setIsSaving(true);
         try {
-            await authApi.setPin(pinStr);
-            toast.success('Transaction PIN set successfully!');
+            if (mode === 'change') {
+                await authApi.changePin({ oldPin: oldPin.join(''), newPin: pinStr });
+                toast.success('Transaction PIN changed successfully!');
+            } else {
+                await authApi.setPin(pinStr);
+                toast.success('Transaction PIN set successfully!');
+            }
             onComplete();
-        } catch {
-            toast.error('Failed to set PIN. Try again.');
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Failed to update PIN. Try again.');
         } finally {
             setIsSaving(false);
         }
@@ -115,7 +138,7 @@ export function PinSetupModal({ isOpen, onComplete, onClose }: PinSetupModalProp
             {[0, 1, 2, 3].map((i) => (
                 <input
                     key={i}
-                    ref={refs[i]}
+                    ref={refs[i] as any}
                     type="password"
                     inputMode="numeric"
                     maxLength={1}
@@ -153,15 +176,19 @@ export function PinSetupModal({ isOpen, onComplete, onClose }: PinSetupModalProp
                         </div>
 
                         <h3 className="text-[#F1F5F9] text-lg font-bold mb-1">
-                            {step === 'enter' ? 'Set Transaction PIN' : 'Confirm Your PIN'}
+                            {step === 'old' ? 'Enter Old PIN' : step === 'enter' ? (mode === 'change' ? 'New PIN' : 'Set Transaction PIN') : 'Confirm Your PIN'}
                         </h3>
                         <p className="text-[#94A3B8] text-sm mb-6">
-                            {step === 'enter'
+                            {step === 'old' 
+                                ? 'Authorize the change with your current PIN'
+                                : step === 'enter'
                                 ? 'Create a 4-digit PIN to authorize transactions'
-                                : 'Re-enter your PIN to confirm'}
+                                : 'Re-enter your new PIN to confirm'}
                         </p>
 
-                        {step === 'enter'
+                        {step === 'old'
+                            ? renderPinInputs(oldPin, setOldPin, oldRefs)
+                            : step === 'enter'
                             ? renderPinInputs(pin, setPin, inputRefs)
                             : renderPinInputs(confirmPin, setConfirmPin, confirmRefs)
                         }
@@ -171,11 +198,11 @@ export function PinSetupModal({ isOpen, onComplete, onClose }: PinSetupModalProp
                         )}
 
                         <button
-                            onClick={step === 'enter' ? handleContinue : handleSubmit}
+                            onClick={step === 'confirm' ? handleSubmit : handleContinue}
                             disabled={isSaving}
                             className="w-full mt-6 bg-[#00D084] hover:bg-[#00b872] disabled:opacity-50 text-[#0F1117] font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2"
                         >
-                            {isSaving ? <Loader2 size={16} className="animate-spin" /> : step === 'enter' ? 'Continue' : 'Set PIN'}
+                            {isSaving ? <Loader2 size={16} className="animate-spin" /> : step === 'confirm' ? (mode === 'change' ? 'Change PIN' : 'Set PIN') : 'Continue'}
                         </button>
 
                         {step === 'confirm' && (

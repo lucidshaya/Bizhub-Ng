@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Loader2, Building2, HardHat } from 'lucide-react';
+import { useToast } from '../components/web/Toast';
 
 type LoginRole = 'business' | 'worker';
 
@@ -10,21 +11,21 @@ export function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [loginRole, setLoginRole] = useState<LoginRole>('business');
     const { login } = useAuth();
     const navigate = useNavigate();
+    const toast = useToast();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
         setIsLoading(true);
         try {
             await login(email, password);
             navigate('/dashboard');
         } catch (err: any) {
-            setError(err.message || err.response?.data?.message || 'Invalid email or password');
+            const errorMsg = err.response?.data?.message || err.message || 'Invalid email or password';
+            toast.error(errorMsg);
         } finally {
             setIsLoading(false);
         }
@@ -49,7 +50,7 @@ export function LoginPage() {
                 {/* Role Toggle */}
                 <div className="flex bg-[#161B27] border border-[#1E2535] rounded-xl p-1 mb-6">
                     <button
-                        onClick={() => { setLoginRole('business'); setError(''); }}
+                        onClick={() => setLoginRole('business')}
                         className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${loginRole === 'business'
                             ? 'bg-[#00D084] text-[#0F1117]'
                             : 'text-[#94A3B8] hover:text-[#F1F5F9]'
@@ -59,7 +60,7 @@ export function LoginPage() {
                         Business Owner
                     </button>
                     <button
-                        onClick={() => { setLoginRole('worker'); setError(''); }}
+                        onClick={() => setLoginRole('worker')}
                         className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${loginRole === 'worker'
                             ? 'bg-[#3B82F6] text-white'
                             : 'text-[#94A3B8] hover:text-[#F1F5F9]'
@@ -81,20 +82,13 @@ export function LoginPage() {
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-5">
-                        {error && (
-                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                                className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm">
-                                {error}
-                            </motion.div>
-                        )}
-
                         {/* Email */}
                         <div>
                             <label className="block text-[#94A3B8] text-sm mb-2">Email</label>
                             <div className="relative">
                                 <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#475569]" />
                                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                                    required placeholder={loginRole === 'worker' ? 'worker@email.com' : 'you@business.com'}
+                                    required autoComplete="email" placeholder={loginRole === 'worker' ? 'worker@email.com' : 'you@business.com'}
                                     className="w-full bg-[#0F1117] border border-[#1E2535] rounded-xl pl-11 pr-4 py-3 text-[#F1F5F9] text-sm placeholder-[#475569] focus:outline-none focus:border-[#00D084] transition-colors" />
                             </div>
                         </div>
@@ -110,7 +104,7 @@ export function LoginPage() {
                             <div className="relative">
                                 <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#475569]" />
                                 <input type={showPassword ? 'text' : 'password'} value={password}
-                                    onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••"
+                                    onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" placeholder="••••••••"
                                     className="w-full bg-[#0F1117] border border-[#1E2535] rounded-xl pl-11 pr-12 py-3 text-[#F1F5F9] text-sm placeholder-[#475569] focus:outline-none focus:border-[#00D084] transition-colors" />
                                 <button type="button" onClick={() => setShowPassword(!showPassword)}
                                     className="absolute right-4 top-1/2 -translate-y-1/2 text-[#475569] hover:text-[#94A3B8]">

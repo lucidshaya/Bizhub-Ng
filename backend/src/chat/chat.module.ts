@@ -5,9 +5,9 @@ import { ChatGateway } from './chat.gateway';
 import { AuthModule } from '../auth/auth.module'; // import AuthModule for JwtService
 
 @Module({
-    imports: [AuthModule],
-    controllers: [ChatController],
-    providers: [ChatService, ChatGateway],
-    exports: [ChatService],
+  imports: [AuthModule],
+  controllers: [ChatController],
+  providers: [ChatService, ChatGateway],
+  exports: [ChatService],
 })
-export class ChatModule { }
+export class ChatModule {}

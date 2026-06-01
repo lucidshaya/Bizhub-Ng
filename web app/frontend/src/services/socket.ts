@@ -9,8 +9,12 @@ export const socketService = {
     connect: () => {
         if (!socket) {
             const token = localStorage.getItem('bizhub_token');
+            const user = JSON.parse(localStorage.getItem('bizhub_user') || '{}');
+            const businessId = user.businessId || '';
+
             socket = io(WS_URL, {
                 auth: { token },
+                query: { businessId },
                 transports: ['websocket'],
             });
 

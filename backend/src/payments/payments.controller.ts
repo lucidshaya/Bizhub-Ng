@@ -1,73 +1,112 @@
-import { Controller, Post, Get, Body, Req, UseGuards, HttpCode } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Req,
+  UseGuards,
+  HttpCode,
+} from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { InitializePaymentDto, VerifyPaymentDto, WithdrawDto } from './dto/payment.dto';
+import { SubscriptionGuard } from '../auth/guards/subscription.guard';
+import { IsBilling } from '../auth/decorators/is-billing.decorator';
+import {
+  InitializePaymentDto,
+  VerifyPaymentDto,
+  WithdrawDto,
+} from './dto/payment.dto';
 
+@UseGuards(SubscriptionGuard)
+@IsBilling()
 @Controller('payments')
 export class PaymentsController {
-    constructor(private payments: PaymentsService) { }
+  constructor(private payments: PaymentsService) {}
 
-    // ─── PAYSTACK ─────────────────────────────────────────
+  // ─── PAYSTACK ─────────────────────────────────────────
 
-    @UseGuards(JwtAuthGuard)
-    @Post('paystack/initialize')
-    async paystackInit(@Req() req: any, @Body() dto: InitializePaymentDto) {
-        return this.payments.paystackInitialize(req.user.id, dto.amount, dto.email, dto.description);
-    }
+  @UseGuards(JwtAuthGuard)
+  @Post('paystack/initialize')
+  async paystackInit(@Req() req: any, @Body() dto: InitializePaymentDto) {
+    return this.payments.paystackInitialize(
+      req.user.id,
+      dto.amount,
+      dto.email,
+      dto.description,
+    );
+  }
 
-    @UseGuards(JwtAuthGuard)
-    @Post('paystack/verify')
-    async paystackVerify(@Body() dto: VerifyPaymentDto) {
-        return this.payments.paystackVerify(dto.reference);
-    }
+  @UseGuards(JwtAuthGuard)
+  @Post('paystack/verify')
+  async paystackVerify(@Body() dto: VerifyPaymentDto) {
+    return this.payments.paystackVerify(dto.reference);
+  }
 
-    @UseGuards(JwtAuthGuard)
-    @Post('paystack/verify-funding')
-    async paystackVerifyFunding(@Req() req: any, @Body() dto: VerifyPaymentDto) {
-        return this.payments.verifyWalletFunding(dto.reference, req.user.sub); 
-    }
+  @UseGuards(JwtAuthGuard)
+  @Post('paystack/verify-funding')
+  async paystackVerifyFunding(@Req() req: any, @Body() dto: VerifyPaymentDto) {
+    return this.payments.verifyWalletFunding(dto.reference, req.user.sub);
+  }
 
-    @Post('paystack/webhook')
-    @HttpCode(200)
-    async paystackWebhook(@Body() body: any) {
-        await this.payments.paystackWebhook(body);
-        return { received: true };
-    }
+  @Post('paystack/webhook')
+  @HttpCode(200)
+  async paystackWebhook(@Body() body: any) {
+    await this.payments.paystackWebhook(body);
+    return { received: true };
+  }
 
-    // ─── FLUTTERWAVE ──────────────────────────────────────
+  // ─── FLUTTERWAVE ──────────────────────────────────────
 
-    @UseGuards(JwtAuthGuard)
-    @Post('flutterwave/initialize')
-    async flutterwaveInit(@Req() req: any, @Body() dto: InitializePaymentDto) {
-        return this.payments.flutterwaveInitialize(req.user.id, dto.amount, dto.email, dto.description);
-    }
+  @UseGuards(JwtAuthGuard)
+  @Post('flutterwave/initialize')
+  async flutterwaveInit(@Req() req: any, @Body() dto: InitializePaymentDto) {
+    return this.payments.flutterwaveInitialize(
+      req.user.id,
+      dto.amount,
+      dto.email,
+      dto.description,
+    );
+  }
 
-    @UseGuards(JwtAuthGuard)
-    @Post('flutterwave/verify')
-    async flutterwaveVerify(@Body() dto: VerifyPaymentDto) {
-        return this.payments.flutterwaveVerify(dto.reference);
-    }
+  @UseGuards(JwtAuthGuard)
+  @Post('flutterwave/verify')
+  async flutterwaveVerify(@Body() dto: VerifyPaymentDto) {
+    return this.payments.flutterwaveVerify(dto.reference);
+  }
 
-    // ─── MONIEPOINT ───────────────────────────────────────
+  // ─── MONIEPOINT ───────────────────────────────────────
 
-    @UseGuards(JwtAuthGuard)
-    @Post('moniepoint/virtual-account')
-    async moniepointVirtualAccount(@Req() req: any, @Body() body: { name: string; email: string }) {
-        return this.payments.moniepointCreateVirtualAccount(req.user.id, body.name, body.email);
-    }
+  @UseGuards(JwtAuthGuard)
+  @Post('moniepoint/virtual-account')
+  async moniepointVirtualAccount(
+    @Req() req: any,
+    @Body() body: { name: string; email: string },
+  ) {
+    return this.payments.moniepointCreateVirtualAccount(
+      req.user.id,
+      body.name,
+      body.email,
+    );
+  }
 
-    // ─── OPAY ─────────────────────────────────────────────
+  // ─── OPAY ─────────────────────────────────────────────
 
-    @UseGuards(JwtAuthGuard)
-    @Post('opay/transfer')
-    async opayTransfer(@Req() req: any, @Body() dto: WithdrawDto) {
-        return this.payments.opayTransfer(req.user.id, dto.amount, dto.bankCode, dto.accountNumber, dto.accountName);
-    }
+  @UseGuards(JwtAuthGuard)
+  @Post('opay/transfer')
+  async opayTransfer(@Req() req: any, @Body() dto: WithdrawDto) {
+    return this.payments.opayTransfer(
+      req.user.id,
+      dto.amount,
+      dto.bankCode,
+      dto.accountNumber,
+      dto.accountName,
+    );
+  }
 
-    // ─── BANKS ────────────────────────────────────────────
+  // ─── BANKS ────────────────────────────────────────────
 
-    @Get('banks')
-    async getBanks() {
-        return this.payments.getBanks();
-    }
+  @Get('banks')
+  async getBanks() {
+    return this.payments.getBanks();
+  }
 }

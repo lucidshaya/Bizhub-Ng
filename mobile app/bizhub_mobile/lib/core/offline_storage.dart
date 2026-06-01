@@ -29,4 +29,23 @@ class OfflineStorage {
   static Future<void> clearAll() async {
     await _box.clear();
   }
+
+  // Pending Syncs (Queue)
+  static const String _pendingSyncsKey = 'pending_syncs';
+
+  static List<Map<String, dynamic>> getPendingSyncs() {
+    final data = _box.get(_pendingSyncsKey);
+    if (data == null) return [];
+    return List<Map<String, dynamic>>.from(data);
+  }
+
+  static Future<void> addPendingSync(Map<String, dynamic> syncData) async {
+    final list = getPendingSyncs();
+    list.add(syncData);
+    await _box.put(_pendingSyncsKey, list);
+  }
+
+  static Future<void> clearPendingSyncs() async {
+    await _box.delete(_pendingSyncsKey);
+  }
 }

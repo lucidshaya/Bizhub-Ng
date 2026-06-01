@@ -7,6 +7,7 @@ import 'staff_screen.dart';
 import 'transactions_screen.dart';
 import 'cctv_screen.dart';
 import 'more_screen.dart';
+import 'subscription_screen.dart';
 import '../core/api_service.dart';
 
 class HomeShell extends StatefulWidget {
@@ -23,7 +24,8 @@ class _HomeShellState extends State<HomeShell> {
       if (bizType == 'Corporate/Workplace') {
         return const [MoreScreen()];
       } else {
-        return const [DashboardScreen(), CctvScreen(), MoreScreen()];
+        // Retail worker: Transactions, More (Settings/Communications)
+        return const [TransactionsScreen(), MoreScreen()];
       }
     }
     return const [
@@ -42,7 +44,7 @@ class _HomeShellState extends State<HomeShell> {
   ) {
     if (role == 'WORKER') {
       if (bizType == 'Corporate/Workplace') {
-        return const [
+        return [
           BottomNavigationBarItem(
             icon: Icon(Icons.more_horiz_rounded),
             label: 'More',
@@ -50,15 +52,11 @@ class _HomeShellState extends State<HomeShell> {
         ];
       } else {
         return [
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_rounded),
-            label: 'Home',
+          BottomNavigationBarItem(
+            icon: Icon(Icons.receipt_long_rounded),
+            label: 'Sales',
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.videocam_rounded),
-            label: plan == 'STARTER' || plan == 'BASIC' ? 'CCTV 🔒' : 'CCTV',
-          ),
-          const BottomNavigationBarItem(
             icon: Icon(Icons.more_horiz_rounded),
             label: 'More',
           ),
@@ -94,10 +92,17 @@ class _HomeShellState extends State<HomeShell> {
     final auth = context.watch<AuthProvider>();
     final role = auth.user?['role'] ?? 'VIEWER';
     final bizType = auth.user?['businessType'] ?? '';
-    final plan = auth.user?['business']?['plan'] ?? 'STARTER';
+    final plan = auth.user?['business']?['plan'];
+
+    if (role == 'OWNER' && bizType == 'Corporate/Workplace' && plan == null) {
+      return const SubscriptionScreen();
+    }
+
+    // Default string fallback for UI logic
+    final currentPlan = plan ?? 'STARTER';
 
     final screens = _buildScreens(role, bizType);
-    final items = _buildItems(role, bizType, plan);
+    final items = _buildItems(role, bizType, currentPlan);
 
     if (_currentIndex >= screens.length) {
       _currentIndex = 0;
@@ -120,12 +125,8 @@ class _HomeShellState extends State<HomeShell> {
               child: BottomNavigationBar(
                 currentIndex: _currentIndex,
                 onTap: (i) {
-                  final isCCTV =
-                      (role == 'WORKER' &&
-                          bizType != 'Corporate/Workplace' &&
-                          i == 1) ||
-                      (role != 'WORKER' && i == 3);
-                  if (isCCTV && (plan == 'STARTER' || plan == 'BASIC')) {
+                  final isCCTV = (role != 'WORKER' && i == 3);
+                  if (role != 'WORKER' && isCCTV && (currentPlan == 'STARTER' || currentPlan == 'BASIC')) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text(
