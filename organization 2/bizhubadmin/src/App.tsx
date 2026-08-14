@@ -353,6 +353,7 @@ function ReportsView() {
                 onClick={() => setSelectedTicket(null)}
                 className="text-[#94A3B8] hover:text-[#F1F5F9] transition-colors"
               >
+                {/* code comments */}
                 <AlertCircle className="w-5 h-5" />
               </button>
             </div>
