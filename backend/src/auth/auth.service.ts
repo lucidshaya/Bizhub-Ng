@@ -53,12 +53,18 @@ export class AuthService {
   // ─── SIGNUP ──────────────────────────────────────────
 
   async signup(dto: SignupDto) {
-    // Check if user exists
-    const existing = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+    const normalizedEmail = dto.email.trim().toLowerCase();
+
+    // Check if user exists (case-insensitive check)
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        email: { equals: normalizedEmail, mode: 'insensitive' },
+      },
     });
     if (existing) {
-      throw new ConflictException('Email already registered');
+      throw new ConflictException(
+        'An account with this email already exists. Please log in or delete your existing account from settings to register again.',
+      );
     }
 
     // Try to create user in Supabase Auth (optional — login uses bcrypt)
@@ -67,12 +73,41 @@ export class AuthService {
       const supabase = this.supabaseService.getClient();
       const { data: supabaseUser, error: supabaseError } =
         await supabase.auth.admin.createUser({
-          email: dto.email,
+          email: normalizedEmail,
           password: dto.password,
           email_confirm: true,
         });
+
       if (supabaseError) {
         console.log('⚠️ Supabase signup note:', supabaseError.message);
+        // If a leftover user exists in Supabase from prior deletion, delete it and recreate
+        if (
+          supabaseError.message?.toLowerCase().includes('already') ||
+          supabaseError.message?.toLowerCase().includes('exists')
+        ) {
+          try {
+            const { data: usersList } = await supabase.auth.admin.listUsers();
+            const staleUser = usersList?.users?.find(
+              (u) => u.email?.toLowerCase() === normalizedEmail,
+            );
+            if (staleUser) {
+              await supabase.auth.admin.deleteUser(staleUser.id);
+              const { data: retryUser } = await supabase.auth.admin.createUser({
+                email: normalizedEmail,
+                password: dto.password,
+                email_confirm: true,
+              });
+              if (retryUser?.user) {
+                supabaseUserId = retryUser.user.id;
+              }
+            }
+          } catch (retryErr: any) {
+            console.warn(
+              '⚠️ Supabase user reconciliation note:',
+              retryErr.message,
+            );
+          }
+        }
       } else if (supabaseUser?.user) {
         supabaseUserId = supabaseUser.user.id;
       }
@@ -101,10 +136,10 @@ export class AuthService {
         },
       });
 
-      // Create user
+      // Create user with normalized email
       const user = await tx.user.create({
         data: {
-          email: dto.email,
+          email: normalizedEmail,
           passwordHash,
           fullName: dto.fullName,
           phone: dto.phone || null,
@@ -147,8 +182,11 @@ export class AuthService {
   // ─── LOGIN ───────────────────────────────────────────
 
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+    const normalizedEmail = dto.email.trim().toLowerCase();
+    const user = await this.prisma.user.findFirst({
+      where: {
+        email: { equals: normalizedEmail, mode: 'insensitive' },
+      },
       include: { business: true },
     });
 
@@ -204,8 +242,11 @@ export class AuthService {
   }
 
   async verify2fa(email: string, code: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { email },
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await this.prisma.user.findFirst({
+      where: {
+        email: { equals: normalizedEmail, mode: 'insensitive' },
+      },
       include: { business: true },
     });
 
@@ -322,9 +363,13 @@ export class AuthService {
       throw new UnauthorizedException('Could not retrieve email from Google');
     }
 
-    // Check if user exists locally
-    let user = await this.prisma.user.findUnique({
-      where: { email: supabaseUser.email },
+    const email = supabaseUser.email.trim().toLowerCase();
+
+    // Check if user exists locally (case-insensitive)
+    let user = await this.prisma.user.findFirst({
+      where: {
+        email: { equals: email, mode: 'insensitive' },
+      },
       include: { business: true },
     });
 
@@ -339,7 +384,7 @@ export class AuthService {
 
       user = await this.prisma.user.create({
         data: {
-          email: supabaseUser.email,
+          email,
           fullName: metadata?.full_name || supabaseUser.email,
           avatarUrl: metadata?.avatar_url || null,
           role: UserRole.OWNER,
@@ -371,11 +416,26 @@ export class AuthService {
   // ─── FORGOT PASSWORD ────────────────────────────────
 
   async forgotPassword(email: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Verify user exists locally
+    const user = await this.prisma.user.findFirst({
+      where: {
+        email: { equals: normalizedEmail, mode: 'insensitive' },
+      },
+    });
+    if (!user) {
+      throw new BadRequestException('No account found with this email');
+    }
+
     try {
       const supabase = this.supabaseService.getClient();
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${process.env.FRONTEND_URL}/reset-password`,
-      });
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        normalizedEmail,
+        {
+          redirectTo: `${process.env.FRONTEND_URL}/reset-password`,
+        },
+      );
 
       if (error) {
         console.error('❌ Supabase forgot password error:', error.message);
@@ -434,9 +494,12 @@ export class AuthService {
     businessId: string,
     staffData: { name: string; email: string; role?: string; phone?: string },
   ) {
+    const normalizedEmail = staffData.email.trim().toLowerCase();
     // Check if already registered
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email: staffData.email },
+    const existingUser = await this.prisma.user.findFirst({
+      where: {
+        email: { equals: normalizedEmail, mode: 'insensitive' },
+      },
     });
 
     let user: { id: string; email: string; fullName: string; role: UserRole };
@@ -575,10 +638,11 @@ export class AuthService {
     // Create Supabase auth user
     const supabase = this.supabaseService.getClient();
     let supabaseUserId: string | null = null;
+    const normalizedEmail = user.email.trim().toLowerCase();
 
     try {
       const { data, error } = await supabase.auth.admin.createUser({
-        email: user.email,
+        email: normalizedEmail,
         password: dto.password,
         email_confirm: true,
         user_metadata: {

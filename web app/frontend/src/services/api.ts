@@ -190,6 +190,7 @@ export const settingsApi = {
     upgradePlanPaystack: (plan: string, isYearly?: boolean) => api.post('/settings/paystack/upgrade-plan', { plan, isYearly }),
     verifyPlanUpgradePaystack: (reference: string) => api.post('/settings/paystack/verify-upgrade', { reference }),
     linkMono: (code: string) => api.post('/settings/mono/link', { code }),
+    deleteAccount: (data?: { password?: string }) => api.post('/settings/delete-account', data || {}),
 };
 
 // ─── EMAIL ────────────────────────────────────────────

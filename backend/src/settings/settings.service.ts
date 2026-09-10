@@ -2,16 +2,20 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  UnauthorizedException,
   Logger,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
+import { SupabaseService } from '../supabase/supabase.service';
+import * as bcrypt from 'bcrypt';
 import {
   TransactionType,
   TransactionStatus,
   BusinessPlan,
+  UserRole,
 } from '@prisma/client';
 import {
   UpdateProfileDto,
@@ -26,6 +30,7 @@ export class SettingsService {
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
+    private supabaseService: SupabaseService,
   ) {}
 
   // ─── PROFILE ─────────────────────────────────────────
@@ -483,4 +488,203 @@ export class SettingsService {
 
     return { status: 'COMPLETED', plan, reference };
   }
+
+  // ─── DELETE ACCOUNT ───────────────────────────────────
+
+  async deleteAccount(userId: string, password?: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { business: true },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Verify password if user has a passwordHash
+    if (user.passwordHash) {
+      if (!password) {
+        throw new BadRequestException(
+          'Password confirmation is required to delete your account.',
+        );
+      }
+      const valid = await bcrypt.compare(password, user.passwordHash);
+      if (!valid) {
+        throw new UnauthorizedException('Incorrect password.');
+      }
+    }
+
+    const businessId = user.businessId;
+    const isOwner = user.role === UserRole.OWNER;
+    const emailToDelete = user.email.toLowerCase().trim();
+    const supabaseUserId = user.supabaseUserId;
+
+    // Collect all user IDs and Supabase IDs to delete from Supabase Auth
+    const usersToDeleteFromSupabase: {
+      id: string;
+      supabaseUserId: string | null;
+      email: string;
+    }[] = [{ id: user.id, supabaseUserId, email: emailToDelete }];
+
+    if (isOwner && businessId) {
+      // Find all other users in this business so we clean their Supabase accounts too
+      const teamUsers = await this.prisma.user.findMany({
+        where: { businessId, id: { not: user.id } },
+        select: { id: true, supabaseUserId: true, email: true },
+      });
+      usersToDeleteFromSupabase.push(...teamUsers);
+
+      // Execute safe cascaded database deletion in transaction
+      await this.prisma.$transaction(async (tx) => {
+        // 1. Delete SaleItems (which restrict product deletion)
+        await tx.saleItem.deleteMany({
+          where: { sale: { businessId } },
+        });
+
+        // 2. Delete StockMovements
+        await tx.stockMovement.deleteMany({
+          where: { businessId },
+        });
+
+        // 3. Delete Sales
+        await tx.sale.deleteMany({
+          where: { businessId },
+        });
+
+        // 4. Delete Products
+        await tx.product.deleteMany({
+          where: { businessId },
+        });
+
+        // 5. Delete PayrollItems
+        await tx.payrollItem.deleteMany({
+          where: { payrollRun: { businessId } },
+        });
+
+        // 6. Delete PayrollRuns
+        await tx.payrollRun.deleteMany({
+          where: { businessId },
+        });
+
+        // 7. Delete ChatMessages & Members
+        await tx.chatMessage.deleteMany({
+          where: { room: { businessId } },
+        });
+        await tx.chatMember.deleteMany({
+          where: { room: { businessId } },
+        });
+        await tx.chatRoom.deleteMany({
+          where: { businessId },
+        });
+
+        // 8. Delete Transactions
+        await tx.transaction.deleteMany({
+          where: { businessId },
+        });
+
+        // 9. Delete InventoryItems
+        await tx.inventoryItem.deleteMany({
+          where: { businessId },
+        });
+
+        // 10. Delete Cameras
+        await tx.camera.deleteMany({
+          where: { businessId },
+        });
+
+        // 11. Delete SmsLogs
+        await tx.smsLog.deleteMany({
+          where: { businessId },
+        });
+
+        // 12. Delete PaymentIntegrations
+        await tx.paymentIntegration.deleteMany({
+          where: { businessId },
+        });
+
+        // 13. Delete Staff
+        await tx.staff.deleteMany({
+          where: { businessId },
+        });
+
+        // 14. Delete all Users in business
+        await tx.user.deleteMany({
+          where: { businessId },
+        });
+
+        // 15. Delete Business
+        await tx.business.delete({
+          where: { id: businessId },
+        });
+
+        // 16. Clean up support tickets for this owner email
+        await tx.supportTicket.deleteMany({
+          where: { userEmail: emailToDelete },
+        });
+      });
+    } else {
+      // Non-owner (Worker / Viewer / Admin) deleting their own account
+      await this.prisma.$transaction(async (tx) => {
+        // Disconnect staff record
+        await tx.staff.updateMany({
+          where: { userId: user.id },
+          data: { userId: null },
+        });
+
+        // Remove chat messages & memberships
+        await tx.chatMessage.deleteMany({
+          where: { senderId: user.id },
+        });
+        await tx.chatMember.deleteMany({
+          where: { userId: user.id },
+        });
+
+        // Delete user
+        await tx.user.delete({
+          where: { id: user.id },
+        });
+      });
+    }
+
+    // Clean up Supabase Auth records for all deleted users
+    try {
+      const supabase = this.supabaseService.getClient();
+      for (const u of usersToDeleteFromSupabase) {
+        if (u.supabaseUserId) {
+          await supabase.auth.admin
+            .deleteUser(u.supabaseUserId)
+            .catch((err) => {
+              this.logger.warn(
+                `Supabase delete by ID error for ${u.email}: ${err.message}`,
+              );
+            });
+        }
+        // Also look up by email in Supabase in case ID differed or wasn't linked
+        try {
+          const { data: listData } = await supabase.auth.admin.listUsers();
+          const target = listData?.users?.find(
+            (su) => su.email?.toLowerCase() === u.email.toLowerCase(),
+          );
+          if (target) {
+            await supabase.auth.admin.deleteUser(target.id);
+            this.logger.log(`Deleted Supabase user ${target.id} (${u.email})`);
+          }
+        } catch (listErr: any) {
+          this.logger.warn(
+            `Supabase listUsers cleanup check failed: ${listErr.message}`,
+          );
+        }
+      }
+    } catch (sbErr: any) {
+      this.logger.warn(`Supabase cleanup overall error: ${sbErr.message}`);
+    }
+
+    this.logger.log(
+      `Successfully deleted account for ${emailToDelete} (role: ${user.role})`,
+    );
+    return {
+      success: true,
+      message: 'Account and associated data deleted successfully.',
+    };
+  }
 }
+

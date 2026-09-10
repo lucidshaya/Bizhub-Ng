@@ -50,22 +50,26 @@ export function SignupPage() {
         setIsLoading(true);
         try {
             await signup({
-                email: form.email,
+                email: form.email.trim().toLowerCase(),
                 password: form.password,
-                fullName: form.fullName,
-                phone: form.phone || undefined,
-                businessName: form.businessName,
+                fullName: form.fullName.trim(),
+                phone: form.phone?.trim() || undefined,
+                businessName: form.businessName.trim(),
                 businessType: form.businessType || undefined,
             });
             navigate('/dashboard');
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Signup failed. Please try again.');
+            setError(
+                err.response?.data?.message || 'Signup failed. Please try again.',
+            );
         } finally {
             setIsLoading(false);
         }
     };
 
-
+    const isDuplicateEmail =
+        error.toLowerCase().includes('already') ||
+        error.toLowerCase().includes('exists');
 
     const inputClass =
         'w-full bg-[#0F1117] border border-[#1E2535] rounded-xl pl-11 pr-4 py-3 text-[#F1F5F9] text-sm placeholder-[#475569] focus:outline-none focus:border-[#00D084] transition-colors';
@@ -103,11 +107,22 @@ export function SignupPage() {
                     <form onSubmit={handleSubmit} className="space-y-4">
                         {error && (
                             <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm"
+                                initial={{ opacity: 0, y: -4 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="bg-red-500/10 border border-red-500/25 rounded-xl p-4 text-red-400 text-sm space-y-2"
                             >
-                                {error}
+                                <p className="font-medium text-red-300">{error}</p>
+                                {isDuplicateEmail && (
+                                    <div className="pt-2 border-t border-red-500/20 flex items-center justify-between text-xs">
+                                        <span className="text-[#94A3B8]">Already have an account?</span>
+                                        <Link
+                                            to="/login"
+                                            className="text-[#00D084] font-semibold hover:underline"
+                                        >
+                                            Sign In instead &rarr;
+                                        </Link>
+                                    </div>
+                                )}
                             </motion.div>
                         )}
 

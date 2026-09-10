@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
-import { authApi } from '../services/api';
+import { authApi, settingsApi } from '../services/api';
 
 interface User {
     id: string;
@@ -33,6 +33,7 @@ interface AuthContextType {
     }) => Promise<void>;
     googleLogin: () => Promise<void>;
     logout: () => Promise<void>;
+    deleteAccount: (password?: string) => Promise<void>;
     refreshProfile: () => Promise<void>;
 }
 
@@ -169,6 +170,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearAuth();
     };
 
+    // ─── DELETE ACCOUNT ──────────────────────────────────
+
+    const deleteAccount = async (password?: string) => {
+        await settingsApi.deleteAccount({ password });
+        try { await supabase.auth.signOut(); } catch { /* ignore */ }
+        clearAuth();
+    };
+
     // ─── REFRESH PROFILE ────────────────────────────────
 
     const refreshProfile = async () => {
@@ -193,6 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 signup,
                 googleLogin,
                 logout,
+                deleteAccount,
                 refreshProfile,
             }}
         >

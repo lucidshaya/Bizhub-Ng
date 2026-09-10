@@ -101,3 +101,10 @@ export class UpgradePlanPaystackDto {
   @IsBoolean()
   isYearly?: boolean;
 }
+
+export class DeleteAccountDto {
+  @IsOptional()
+  @IsString()
+  password?: string;
+}
+

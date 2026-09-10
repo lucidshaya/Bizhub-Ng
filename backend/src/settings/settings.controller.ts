@@ -3,6 +3,7 @@ import {
   Get,
   Patch,
   Post,
+  Delete,
   Body,
   UseGuards,
   Request,
@@ -14,6 +15,7 @@ import {
   ConnectPaymentDto,
   UpgradePlanDto,
   UpgradePlanPaystackDto,
+  DeleteAccountDto,
 } from './dto/settings.dto';
 import { SubscriptionGuard } from '../auth/guards/subscription.guard';
 import { IsBilling } from '../auth/decorators/is-billing.decorator';
@@ -113,4 +115,15 @@ export class SettingsController {
     });
     return { success: true, message: 'Bank account linked successfully' };
   }
+
+  @Delete('/account')
+  async deleteAccount(@Request() req: any, @Body() dto: DeleteAccountDto) {
+    return this.settingsService.deleteAccount(req.user.sub, dto?.password);
+  }
+
+  @Post('/delete-account')
+  async deleteAccountPost(@Request() req: any, @Body() dto: DeleteAccountDto) {
+    return this.settingsService.deleteAccount(req.user.sub, dto?.password);
+  }
 }
+

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   User, CreditCard, Shield, Crown, Check, Loader2, Save, LogOut, Building2,
+  AlertTriangle, Trash2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { settingsApi, authApi } from '../../services/api';
@@ -8,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from './Toast';
 import { PinSetupModal } from './PinSetupModal';
 import { ChangePasswordModal } from './ChangePasswordModal';
+import { DeleteAccountModal } from './DeleteAccountModal';
 
 type SettingsTab = 'profile' | 'payments' | 'security' | 'plan';
 
@@ -30,6 +32,7 @@ export function SettingsScreen() {
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinMode, setPinMode] = useState<'setup' | 'change'>('setup');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
 
   useEffect(() => { loadSettings(); }, []);
@@ -238,6 +241,26 @@ export function SettingsScreen() {
                       {isSaving ? <Loader2 size={16} className="animate-spin" /> : <><Save size={16} /> Save Business</>}
                     </button>
                   </div>
+
+                  {/* Danger Zone in Profile Tab */}
+                  <div className="bg-[#161B27] border border-red-500/20 rounded-2xl p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-red-400 text-sm font-semibold flex items-center gap-2">
+                          <AlertTriangle size={16} /> Delete Account
+                        </h4>
+                        <p className="text-[#64748B] text-xs mt-1">
+                          Permanently delete this account to free up your email or reset your business setup.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setShowDeleteModal(true)}
+                        className="px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-600 hover:text-white rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 flex-shrink-0"
+                      >
+                        <Trash2 size={14} /> Delete Account
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -340,6 +363,34 @@ export function SettingsScreen() {
                       >
                         {twoFactorEnabled ? 'Enabled' : 'Enable'}
                       </button>
+                    </div>
+                  </div>
+
+                  {/* Danger Zone in Security Tab */}
+                  <div className="mt-8 pt-6 border-t border-[#1E2535]">
+                    <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-6">
+                      <h4 className="text-red-400 text-sm font-semibold mb-1 flex items-center gap-2">
+                        <AlertTriangle size={16} /> Danger Zone: Delete Account
+                      </h4>
+                      <p className="text-[#94A3B8] text-xs leading-relaxed mb-4">
+                        Permanently delete your account and all associated data. Once deleted, this email address is immediately released and can be used to register a new account whenever you want.
+                      </p>
+                      <div className="flex items-center justify-between pt-3 border-t border-red-500/10">
+                        <div>
+                          <p className="text-[#F1F5F9] text-xs font-medium">Permanently Erase Account</p>
+                          <p className="text-[#64748B] text-[11px] mt-0.5">
+                            {user?.role === 'OWNER'
+                              ? 'Deletes business setup, employees, sales, inventory & transactions.'
+                              : 'Revokes organization access and deletes your user account.'}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setShowDeleteModal(true)}
+                          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-red-600/20 flex-shrink-0"
+                        >
+                          <Trash2 size={14} /> Delete Account
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -497,6 +548,14 @@ export function SettingsScreen() {
 
       {showPinModal && <PinSetupModal isOpen={showPinModal} mode={pinMode} onClose={() => setShowPinModal(false)} onComplete={() => setShowPinModal(false)} />}
       {showPasswordModal && <ChangePasswordModal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} />}
+      {showDeleteModal && (
+        <DeleteAccountModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          userEmail={profile?.email || user?.email || ''}
+          isOwner={user?.role === 'OWNER'}
+        />
+      )}
     </div>
   );
 }
